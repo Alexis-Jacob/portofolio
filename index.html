@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alexis Jacob Photography</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; background: #f8f7f3; }
+    ::selection { background: #b1803f; color: #fff; }
+    :root {
+      --bg: #f8f7f3;
+      --bg2: #eeebe2;
+      --navbg: rgba(248,247,243,.82);
+      --text: #1b1813;
+      --text2: #3c362b;
+      --muted: #6f6757;
+      --faint: #9c9484;
+      --accent: #b1803f;
+      --line: rgba(28,24,18,.12);
+    }
+    #app { min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif; -webkit-font-smoothing: antialiased; }
+    .ph { display: block; }
+    .nav-link { cursor: pointer; transition: color .2s; }
+    .nav-link:hover { color: var(--text) !important; }
+    .btn-outline { transition: all .2s; }
+    .btn-outline:hover { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+    .work-row { transition: background .2s; }
+    .work-row:hover { background: rgba(28,24,18,.03); }
+    .series-card:hover .sc-title { color: var(--accent); transition: color .2s; }
+    input, textarea {
+      display: block; width: 100%; background: transparent; border: none;
+      border-bottom: 1px solid rgba(28,24,18,.2); color: var(--text);
+      font-family: 'Space Grotesk', sans-serif; font-size: 16px; outline: none;
+      padding: 14px 0; transition: border-color .2s;
+    }
+    input::placeholder, textarea::placeholder { color: var(--faint); }
+    input:focus, textarea:focus { border-bottom-color: var(--accent); }
+    textarea { resize: vertical; }
+    button[type=submit]:hover { opacity: .88; }
+    h1, h2, p { margin: 0; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const S = { view: 'home', series: 0 };
+
+const SERIES = [
+  { title: 'Hivers de Patagonie', kind: 'Paysage',  year: '2025', count: 24, blurb: 'Deux semaines à suivre la lumière des tempêtes sur les champs de glace du sud.' },
+  { title: 'Visages de la Route', kind: 'Portrait', year: '2024', count: 18, blurb: 'Des inconnus croisés sur trois mille miles d\'autoroute ouverte.' },
+  { title: 'Nuits d\'Atacama',    kind: 'Voyage',   year: '2023', count: 21, blurb: 'Le désert le plus aride de la planète, photographié uniquement après la tombée de la nuit.' },
+  { title: 'Pays de Neige',       kind: 'Paysage',  year: '2024', count: 16, blurb: 'Hokkaido en plein hiver — formes réduites à la neige et à l\'ombre.' },
+  { title: 'Seuils du Nord',      kind: 'Portrait', year: '2022', count: 20, blurb: 'Portes et visages au bord du cercle arctique.' },
+];
+
+// Matching original covers = ['06','09','03','11','08'] mapped to gradient indices (0-based)
+const COVERS = [5, 8, 2, 10, 7];
+
+const HEIGHTS = [360, 250, 440, 300, 320, 400, 270, 360];
+
+// 12 gradients simulating landscape/travel tones
+const G = [
+  'linear-gradient(160deg,#c8d8e0,#a0b8c4,#8aa4b0)',  // 0 - misty blue
+  'linear-gradient(140deg,#c4cfa8,#a8bb84,#8fa870)',  // 1 - green
+  'linear-gradient(150deg,#e0d0b0,#c8b890,#b0a070)',  // 2 - warm sand
+  'linear-gradient(135deg,#b4ccd8,#90aec0,#6888a0)',  // 3 - sky blue
+  'linear-gradient(145deg,#d8c8a0,#c4b080,#b09060)',  // 4 - golden
+  'linear-gradient(130deg,#9fb8c8,#7898b0,#506888)',  // 5 - stormy
+  'linear-gradient(155deg,#d4ccc0,#c0b4a4,#a89884)',  // 6 - overcast
+  'linear-gradient(145deg,#c0ccd8,#98b0c0,#7094a8)',  // 7 - ice/mountain
+  'linear-gradient(140deg,#d0b8a8,#b89888,#a07860)',  // 8 - warm portrait
+  'linear-gradient(135deg,#b0c0d0,#8898b0,#607090)',  // 9 - twilight
+  'linear-gradient(150deg,#dcd0b4,#c4b898,#b0a080)',  // 10 - bright warm
+  'linear-gradient(145deg,#aac0ce,#88a4b8,#6088a0)',  // 11 - blue grey
+];
+
+const GP = [
+  'linear-gradient(145deg,#d0c0b0,#b8a898,#a09080)',  // portrait 1
+  'linear-gradient(150deg,#c8c0b8,#b0a8a0,#988e84)',  // portrait 2
+];
+
+function box(g, w, h) {
+  return `<div class="ph" style="width:${w};height:${h}px;background:${g};"></div>`;
+}
+
+function go(view, si) {
+  S.view = view;
+  if (si !== undefined) S.series = si;
+  render();
+  window.scrollTo(0, 0);
+}
+
+
+function nav() {
+  return `<div style="position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;padding:22px 56px;background:var(--navbg);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);">
+  <div onclick="go('home')" style="cursor:pointer;font-weight:700;font-size:17px;letter-spacing:.05em;">JACOB<span style="color:var(--accent);">©</span></div>
+  <div style="display:flex;gap:36px;font:400 12px/1 'Space Mono',monospace;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);">
+    <span class="nav-link" onclick="go('work')">Travaux</span>
+    <span class="nav-link" onclick="go('about')">À propos</span>
+  </div>
+</div>`;
+}
+
+function footer() {
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:40px 56px;border-top:1px solid var(--line);background:var(--bg2);">
+  <div style="font-weight:700;font-size:15px;letter-spacing:.05em;">JACOB<span style="color:var(--accent);">©</span></div>
+  <div style="font:400 11px/1 'Space Mono',monospace;letter-spacing:.06em;color:var(--faint);">© 2026 Alexis Jacob · Paris, France</div>
+</div>`;
+}
+
+function home() {
+  const featured = [0, 3, 1].map(i => {
+    const s = SERIES[i];
+    return `<div class="series-card" onclick="go('series',${i})" style="cursor:pointer;">
+      ${box(G[COVERS[i]], '100%', 420)}
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:18px;">
+        <div class="sc-title" style="font-family:'Instrument Serif',serif;font-size:26px;">${s.title}</div>
+        <div style="font:400 11px 'Space Mono',monospace;color:var(--faint);">${s.year}</div>
+      </div>
+      <div style="font:400 11px 'Space Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:6px;">${s.kind} · ${s.count} photos</div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div style="padding:80px 56px 0;">
+    <div style="display:flex;justify-content:space-between;font:400 12px/1.6 'Space Mono',monospace;letter-spacing:.08em;color:var(--faint);text-transform:uppercase;margin-bottom:40px;">
+      <span>Alexis Jacob — Photographe</span><span>Paris &amp; ailleurs</span>
+    </div>
+    <h1 style="font-weight:700;font-size:128px;line-height:.9;letter-spacing:-.035em;text-transform:uppercase;">Le long chemin<br><span style="font-family:'Instrument Serif',serif;font-weight:400;font-style:italic;text-transform:none;letter-spacing:0;color:var(--accent);">du nord</span></h1>
+    <p style="max-width:540px;margin:36px 0 56px;font-size:16px;line-height:1.75;color:var(--muted);">Photographie de paysage, de voyage et de portrait depuis les confins de la carte — à la recherche de cette lumière lente et douce qui transforme un lieu en souvenir.</p>
+  </div>
+  <div style="padding:0 56px;">${box(G[0], '100%', 620)}</div>
+
+  <div style="padding:96px 56px 40px;">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:44px;">
+      <div style="font:400 12px/1 'Space Mono',monospace;letter-spacing:.16em;color:var(--faint);text-transform:uppercase;">Séries sélectionnées</div>
+      <span onclick="go('work')" style="cursor:pointer;font:400 12px 'Space Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);">Toutes les séries →</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:28px;">${featured}</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:center;padding:96px 56px;margin-top:48px;background:var(--bg2);">
+    ${box(GP[0], '100%', 480)}
+    <div>
+      <div style="font:400 12px/1 'Space Mono',monospace;letter-spacing:.16em;color:var(--faint);text-transform:uppercase;margin-bottom:28px;">Derrière l'objectif</div>
+      <p style="font-family:'Instrument Serif',serif;font-size:34px;line-height:1.4;">« Je photographie l'entre-deux — cette lumière tranquille aux bords d'un voyage, là où le paysage et l'inconnu ne font qu'un. »</p>
+      <p style="margin-top:30px;font-size:15px;line-height:1.8;color:var(--muted);max-width:440px;">Une décennie à suivre les tempêtes, les routes et les saisons sous les latitudes nord.</p>
+      <span onclick="go('about')" style="display:inline-block;margin-top:30px;cursor:pointer;font:400 12px 'Space Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--accent);padding-bottom:4px;">En savoir plus →</span>
+    </div>
+  </div>
+`;
+}
+
+function work() {
+  const rows = SERIES.map((s, i) => {
+    const n = String(i + 1).padStart(2, '0');
+    return `<div class="work-row" onclick="go('series',${i})" style="cursor:pointer;display:grid;grid-template-columns:64px 1fr 150px 70px 150px;gap:28px;align-items:center;padding:26px 0;border-bottom:1px solid var(--line);">
+      <span style="font:400 13px 'Space Mono',monospace;color:var(--accent);">${n}</span>
+      <div>
+        <div style="font-weight:500;font-size:32px;letter-spacing:-.01em;">${s.title}</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--muted);margin-top:6px;max-width:480px;">${s.blurb}</div>
+      </div>
+      <span style="font:400 12px 'Space Mono',monospace;text-transform:uppercase;color:var(--faint);letter-spacing:.08em;">${s.kind}</span>
+      <span style="font:400 12px 'Space Mono',monospace;color:var(--faint);">${s.year}</span>
+      ${box(G[COVERS[i]], '100%', 90)}
+    </div>`;
+  }).join('');
+
+  return `<div style="padding:80px 56px 110px;min-height:80vh;">
+    <div style="font:400 12px/1 'Space Mono',monospace;letter-spacing:.16em;color:var(--faint);text-transform:uppercase;margin-bottom:18px;">Index des séries · 2014—2026</div>
+    <h1 style="font-weight:700;font-size:80px;line-height:.95;letter-spacing:-.03em;text-transform:uppercase;margin-bottom:60px;">Travaux</h1>
+    <div style="border-top:1px solid var(--line);">${rows}</div>
+  </div>`;
+}
+
+function series() {
+  const si = S.series;
+  const n = SERIES.length;
+  const s = SERIES[si];
+  const pi = (si + n - 1) % n;
+  const ni = (si + 1) % n;
+
+  const gallery = HEIGHTS.map((h, i) => {
+    const gi = (si * 3 + i) % G.length;
+    return `<div style="break-inside:avoid;margin-bottom:20px;">${box(G[gi], '100%', h)}</div>`;
+  }).join('');
+
+  return `<div style="padding:60px 56px 90px;">
+    <span onclick="go('work')" style="cursor:pointer;font:400 12px 'Space Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">← Toutes les séries</span>
+    <div style="display:grid;grid-template-columns:1fr 360px;gap:48px;align-items:end;margin:36px 0 56px;padding-bottom:40px;border-bottom:1px solid var(--line);">
+      <div>
+        <div style="font:400 12px/1 'Space Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:18px;">${s.kind} · ${s.year} · ${s.count} photos</div>
+        <h1 style="font-weight:700;font-size:88px;line-height:.92;letter-spacing:-.03em;text-transform:uppercase;">${s.title}</h1>
+      </div>
+      <p style="font-family:'Instrument Serif',serif;font-size:24px;line-height:1.45;color:var(--text2);">${s.blurb}</p>
+    </div>
+    <div style="column-count:3;column-gap:20px;">${gallery}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:64px;padding-top:36px;border-top:1px solid var(--line);">
+      <div onclick="go('series',${pi})" style="cursor:pointer;">
+        <div style="font:400 11px 'Space Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);">← Précédent</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:28px;margin-top:6px;">${SERIES[pi].title}</div>
+      </div>
+      <div onclick="go('series',${ni})" style="cursor:pointer;text-align:right;">
+        <div style="font:400 11px 'Space Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);">Suivant →</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:28px;margin-top:6px;">${SERIES[ni].title}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function about() {
+  return `<div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:72px;padding:80px 56px;align-items:start;">
+      <div style="position:sticky;top:100px;">${box(GP[1], '100%', 600)}</div>
+      <div>
+        <div style="font:400 12px/1 'Space Mono',monospace;letter-spacing:.16em;color:var(--faint);text-transform:uppercase;margin-bottom:24px;">À propos</div>
+        <h1 style="font-family:'Instrument Serif',serif;font-weight:400;font-size:56px;line-height:1.1;margin-bottom:36px;">Alexis Jacob</h1>
+        <p style="font-size:17px;line-height:1.85;color:var(--text2);margin-bottom:22px;">Je suis un photographe amateur basé à Paris, travaillant là où la lumière et la route me mènent — le plus souvent dans les coins froids et silencieux de l'hémisphère nord.</p>
+        <p style="font-size:16px;line-height:1.85;color:var(--muted);margin-bottom:22px;">Depuis dix ans, je réalise de longs voyages lents avec un appareil photo : deux semaines à traquer la lumière des tempêtes sur les glaces de Patagonie, un hiver à réduire Hokkaido à la neige et à l'ombre, trois mille miles d'autoroute ouverte et les inconnus rencontrés en chemin. Le travail vit dans l'entre-deux — ces moments où un paysage et ceux qui le traversent deviennent la même image.</p>
+        <p style="font-size:16px;line-height:1.85;color:var(--muted);">La photographie pour le plaisir — celle qui est lente, patiente, et qui vous demande de vous arrêter et de regarder.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:36px 48px;margin-top:56px;padding-top:40px;border-top:1px solid var(--line);">
+          <div>
+            <div style="font:400 11px 'Space Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;">Matériel</div>
+            <div style="font-size:14px;line-height:2;color:var(--text2);">Canon Mark III<br>Leica typ 240</div>
+          </div>
+          <div>
+            <div style="font:400 11px 'Space Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;">Basé à</div>
+            <div style="font-size:14px;line-height:2;color:var(--text2);">Paris, France<br>Voyage dans le monde entier</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function render() {
+  const views = { home, work, series, about };
+  const content = (views[S.view] || home)();
+  document.getElementById('app').innerHTML = nav() + content + footer();
+}
+
+render();
+</script>
+</body>
+</html>
