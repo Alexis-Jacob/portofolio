@@ -42,8 +42,9 @@
     textarea { resize: vertical; }
     button[type=submit]:hover { opacity: .88; }
     h1, h2, p { margin: 0; }
-    #lb { touch-action: none; }
-    #lb img { max-width: 100vw; max-height: 100vh; object-fit: contain; user-select: none; }
+    #lb { display:flex; align-items:center; justify-content:center; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.93); touch-action:none; visibility:hidden; pointer-events:none; }
+    #lb.open { visibility:visible; pointer-events:all; }
+    #lb img { max-width:90vw; max-height:90vh; object-fit:contain; user-select:none; display:block; }
     #lb-prev, #lb-next { position: absolute; top: 50%; transform: translateY(-50%); background: none; border: none; color: #fff; font-size: 52px; line-height: 1; cursor: pointer; padding: 16px 24px; opacity: .55; transition: opacity .15s; }
     #lb-prev:hover, #lb-next:hover { opacity: 1; }
     #lb-prev { left: 0; }
@@ -57,7 +58,7 @@
 </head>
 <body>
 <div id="app"></div>
-<div id="lb" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.93);align-items:center;justify-content:center;" onclick="closeLB()">
+<div id="lb" onclick="closeLB()">
   <img id="lb-img" src="" alt="" onclick="event.stopPropagation()">
   <button id="lb-close" onclick="closeLB()">×</button>
   <button id="lb-prev" onclick="lbNav(-1);event.stopPropagation()">‹</button>
@@ -289,12 +290,12 @@ function openLB(idx) {
   LB.photos = photos;
   LB.idx = idx;
   lbImg().src = photos[idx];
-  lbEl().style.display = 'flex';
+  lbEl().classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 
 function closeLB() {
-  lbEl().style.display = 'none';
+  lbEl().classList.remove('open');
   document.body.style.overflow = '';
 }
 
