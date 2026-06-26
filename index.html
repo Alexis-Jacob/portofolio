@@ -186,9 +186,9 @@ window.addEventListener('popstate', () => { readHash(); render(); window.scrollT
 
 
 function nav() {
-  return `<div style="position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;padding:22px 56px;background:var(--navbg);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);">
-  <div onclick="go('home')" style="cursor:pointer;font-weight:700;font-size:17px;letter-spacing:.05em;">JACOB<span style="color:var(--accent);">©</span></div>
+  return `<div style="position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:flex-end;padding:22px 56px;background:var(--navbg);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);">
   <div style="display:flex;gap:36px;font:400 12px/1 'Space Mono',monospace;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);">
+    <span class="nav-link" onclick="go('home')">Accueil</span>
     <span class="nav-link" onclick="go('work')">Travaux</span>
     <span class="nav-link" onclick="go('about')">À propos</span>
   </div>
@@ -196,8 +196,7 @@ function nav() {
 }
 
 function footer() {
-  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:40px 56px;border-top:1px solid var(--line);background:var(--bg2);">
-  <div style="font-weight:700;font-size:15px;letter-spacing:.05em;">JACOB<span style="color:var(--accent);">©</span></div>
+  return `<div style="padding:40px 56px;border-top:1px solid var(--line);background:var(--bg2);text-align:right;">
   <div style="font:400 11px/1 'Space Mono',monospace;letter-spacing:.06em;color:var(--faint);">© 2026 Alexis Jacob · Paris, France</div>
 </div>`;
 }
@@ -217,9 +216,6 @@ function home() {
 
   return `
   <div style="padding:80px 56px 0;">
-    <div style="display:flex;justify-content:space-between;font:400 12px/1.6 'Space Mono',monospace;letter-spacing:.08em;color:var(--faint);text-transform:uppercase;margin-bottom:40px;">
-      <span>Alexis Jacob — Photographe</span><span>Paris &amp; ailleurs</span>
-    </div>
     <h1 style="font-weight:700;font-size:128px;line-height:.9;letter-spacing:-.035em;text-transform:uppercase;">La ville<br><span style="font-family:'Instrument Serif',serif;font-weight:400;font-style:italic;text-transform:none;letter-spacing:0;color:var(--accent);">comme elle est</span></h1>
     <p style="max-width:540px;margin:36px 0 56px;font-size:16px;line-height:1.75;color:var(--muted);">New York, mai 2026. Douze images au Leica — entre les toits et les trottoirs, le bruit et le silence, ce que la ville montre et ce qu'elle cache.</p>
   </div>
