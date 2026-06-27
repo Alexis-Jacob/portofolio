@@ -155,8 +155,7 @@ const COLOMBIA_PHOTOS = [
   BASE + 'v1782551536/067A2744_rjepxb.jpg',              // 29 — façade turquoise, personnages en relief
   BASE + 'v1782551530/067A2721-Modifier_b7eugx.jpg',     // 30 — autoportrait dans le rétroviseur du bateau
   BASE + 'v1782551490/067A2597-Modifier_xencyz.jpg',     // 31 — lac de Guatapé, collines vertes et maisons
-  BASE + 'v1782551496/067A2617-Modifier-2_vaylxh.jpg',   // 32 — panorama de l\'embalse sous ciel d\'orage
-  BASE + 'v1782551501/067A2618_z9dvbl.jpg',              // 33 — lac, arbres et berges de latérite rouge
+  BASE + 'v1782551501/067A2618_z9dvbl.jpg',              // 32 — lac, arbres et berges de latérite rouge
   BASE + 'v1782551507/067A2623-Modifier_w1iqrp.jpg',     // 34 — ciel dramatique, lac et îlot
   BASE + 'v1782551513/067A2640_b8kkvm.jpg',              // 35 — grenouille "Deposite aquí su basura", lac en fond
   BASE + 'v1782551519/067A2646_zgwsr3.jpg',              // 36 — archipel d\'îlots verts dans le lac
@@ -170,7 +169,7 @@ const COLOMBIA_PHOTOS = [
 const SERIES = [
   { title: 'New York City',       kind: 'Voyage',   year: '2026', count: 12, blurb: 'Mai 2026, au Leica. De la hauteur des toits à l\'invisible des trottoirs — la ville dans tous ses états.', photos: NYC_PHOTOS, cover: NYC_PHOTOS[0], grad: 3 },
   { title: 'Sikkim & Ladakh',     kind: 'Voyage',   year: '2017', count: 27, blurb: 'Du festival du cham aux alpenglow du Kangchenjunga, puis le désert minéral du Ladakh. Un voyage, deux mondes himalayens.', photos: SIKKIM_PHOTOS, cover: SIKKIM_PHOTOS[21], grad: 4 },
-  { title: 'Colombie',            kind: 'Voyage',   year: '2016', count: 41, blurb: 'Cartagena dorée, La Guajira jusqu\'au bout de l\'Amérique, le lac de Guatapé et les palmiers de cire de Cocora. Un pays que l\'on ne comprend qu\'en le traversant.', photos: COLOMBIA_PHOTOS, cover: COLOMBIA_PHOTOS[16], grad: 1 },
+  { title: 'Colombie',            kind: 'Voyage',   year: '2016', count: 40, blurb: 'Cartagena dorée, La Guajira jusqu\'au bout de l\'Amérique, le lac de Guatapé et les palmiers de cire de Cocora. Un pays que l\'on ne comprend qu\'en le traversant.', photos: COLOMBIA_PHOTOS, cover: COLOMBIA_PHOTOS[16], grad: 1 },
   { title: 'Hivers de Patagonie', kind: 'Paysage',  year: '2025', count: 24, blurb: 'Deux semaines à suivre la lumière des tempêtes sur les champs de glace du sud.', grad: 5 },
   { title: 'Visages de la Route', kind: 'Portrait', year: '2024', count: 18, blurb: 'Des inconnus croisés sur trois mille miles d\'autoroute ouverte.', grad: 8 },
   { title: 'Nuits d\'Atacama',    kind: 'Voyage',   year: '2023', count: 21, blurb: 'Le désert le plus aride de la planète, photographié uniquement après la tombée de la nuit.', grad: 2 },
@@ -247,7 +246,7 @@ function footer() {
 }
 
 function home() {
-  const featured = [0, 1, 3].map(i => {
+  const featured = [0, 1, 2].map(i => {
     const s = SERIES[i];
     return `<div class="series-card" onclick="go('series',${i})" style="cursor:pointer;">
       ${coverImg(s, '100%', 420)}
