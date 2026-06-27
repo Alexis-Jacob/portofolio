@@ -427,7 +427,7 @@ function series() {
 
   const gallery = s.photos
     ? s.photos.map((url, idx) =>
-        `<div style="break-inside:avoid;margin-bottom:20px;"><img src="${url}" style="width:100%;display:block;cursor:zoom-in;" loading="lazy" onclick="openLB(${idx})"></div>`
+        `<div style="break-inside:avoid;margin-bottom:20px;${url.includes('w_4000') ? 'column-span:all;' : ''}"><img src="${url}" style="width:100%;display:block;cursor:zoom-in;" loading="lazy" onclick="openLB(${idx})"></div>`
       ).join('')
     : HEIGHTS.map((h, i) => {
         const gi = (si * 3 + i) % G.length;
