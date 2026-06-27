@@ -166,11 +166,33 @@ const COLOMBIA_PHOTOS = [
   BASE + 'v1782551565/067A2819-Modifier_jt2vhi.jpg',     // 41 — palmiers de cire en contre-plongée
 ];
 
+const NORWAY_PHOTOS = [
+  BASE + 'v1782552880/067A3388_vrkzcl.jpg',                                           //  1 — parc Vigeland, monolithe et allées au soleil
+  BASE + 'v1782552874/067A3386_cjd6ad.jpg',                                           //  2 — roue de Vigeland, corps entrelacés sur fond bleu
+  BASE + 'v1782552856/067A3322_kkad6h.jpg',                                           //  3 — stavkirke du musée folklorique, charpente sombre
+  BASE + 'v1782552862/067A3341_yrh8xb.jpg',                                           //  4 — petite fille pensive assise sur un muret de pierre
+  BASE + 'v1782552868/067A3360_qwptpd.jpg',                                           //  5 — fillette en métal qui court, forteresse d\'Akershus
+  BASE + 'v1782552844/067A3231_ggwjq9.jpg',                                           //  6 — terrasse le soir, guirlandes lumineuses et feuillage
+  BASE + 'v1782552850/067A3247-Modifier_cq1wgx.jpg',                                  //  7 — Karl Johans Gate la nuit, ciel bleu profond
+  BASE + 'v1782552754/067A3162_HDR_u28fkk.jpg',                                       //  8 — Bergen depuis le Fløyen, ciel d\'orage sur le fjord
+  BASE + 'v1782552636/067A2750-Modifier_zy0hoe.jpg',                                  //  9 — Tromsø vu du téléphérique, pont et cathédrale arctique
+  BASE + 'v1782552641/067A2799-Modifier_vpamho.jpg',                                  // 10 — quai de nuit en N&B, sphère de granit, reflets sur pavés
+  BASE + 'v1782552722/067A2976-Modifier-Modifier-Modifier-Modifier-Modifier_hbjtbo.jpg', // 11 — port de nuit, voilier et reflets dans l\'eau calme
+  BASE + 'v1782552704/067A2891-Modifier_o9cxjq.jpg',                                  // 12 — côte rocheuse sous ciel violet, vagues et silhouettes
+  BASE + 'v1782552647/067A2860-Modifier_cfyp7c.jpg',                                  // 13 — île conique au large, rochers et mer bleue des Lofoten
+  BASE + 'v1782552709/067A2945-Modifier_HDR_r702pp.jpg',                              // 14 — coucher de soleil HDR spectaculaire, Lofoten
+  BASE + 'v1782552716/067A2971-Modifier_pk4gpa.jpg',                                  // 15 — aurore boréale bleue et rose, ciel étoilé
+  BASE + 'v1782552736/067A3027_hoj3kq.jpg',                                           // 16 — rochers et pins en miroir parfait dans l\'eau
+  BASE + 'v1782552748/067A3054-Modifier_gud0ws.jpg',                                  // 17 — gants Gore-Tex dans la neige, Svalbard
+  BASE + 'v1782552742/067A3036-Modifier_svfi9v.jpg',                                  // 18 — surface de glacier, lumière rasante, dunes de neige
+  BASE + 'v1782552730/067A3025-Modifier_km9dlb.jpg',                                  // 19 — vue aérienne depuis un sommet, glacier et toundra arctique
+];
+
 const SERIES = [
   { title: 'New York City',       kind: 'Voyage',   year: '2026', count: 12, blurb: 'Mai 2026, au Leica. De la hauteur des toits à l\'invisible des trottoirs — la ville dans tous ses états.', photos: NYC_PHOTOS, cover: NYC_PHOTOS[0], grad: 3 },
   { title: 'Sikkim & Ladakh',     kind: 'Voyage',   year: '2017', count: 27, blurb: 'Du festival du cham aux alpenglow du Kangchenjunga, puis le désert minéral du Ladakh. Un voyage, deux mondes himalayens.', photos: SIKKIM_PHOTOS, cover: SIKKIM_PHOTOS[21], grad: 4 },
   { title: 'Colombie',            kind: 'Voyage',   year: '2016', count: 40, blurb: 'Cartagena dorée, La Guajira jusqu\'au bout de l\'Amérique, le lac de Guatapé et les palmiers de cire de Cocora. Un pays que l\'on ne comprend qu\'en le traversant.', photos: COLOMBIA_PHOTOS, cover: COLOMBIA_PHOTOS[16], grad: 1 },
-  { title: 'Hivers de Patagonie', kind: 'Paysage',  year: '2025', count: 24, blurb: 'Deux semaines à suivre la lumière des tempêtes sur les champs de glace du sud.', grad: 5 },
+  { title: 'Norvège',             kind: 'Voyage',   year: '2021', count: 19, blurb: 'D\'Oslo et ses sculptures au glacier du Svalbard, en passant par Bergen sous l\'orage et les minuits solaires des Lofoten.', photos: NORWAY_PHOTOS, cover: NORWAY_PHOTOS[13], grad: 5 },
   { title: 'Visages de la Route', kind: 'Portrait', year: '2024', count: 18, blurb: 'Des inconnus croisés sur trois mille miles d\'autoroute ouverte.', grad: 8 },
   { title: 'Nuits d\'Atacama',    kind: 'Voyage',   year: '2023', count: 21, blurb: 'Le désert le plus aride de la planète, photographié uniquement après la tombée de la nuit.', grad: 2 },
   { title: 'Pays de Neige',       kind: 'Paysage',  year: '2024', count: 16, blurb: 'Hokkaido en plein hiver — formes réduites à la neige et à l\'ombre.', grad: 10 },
@@ -354,7 +376,7 @@ function about() {
         <div style="font:400 12px/1 'Space Mono',monospace;letter-spacing:.16em;color:var(--faint);text-transform:uppercase;margin-bottom:24px;">À propos</div>
         <h1 style="font-family:'Instrument Serif',serif;font-weight:400;font-size:56px;line-height:1.1;margin-bottom:36px;">Alexis Jacob</h1>
         <p style="font-size:17px;line-height:1.85;color:var(--text2);margin-bottom:22px;">Je suis un photographe amateur basé à Paris, travaillant là où la lumière et la route me mènent — le plus souvent dans les coins froids et silencieux de l'hémisphère nord.</p>
-        <p style="font-size:16px;line-height:1.85;color:var(--muted);margin-bottom:22px;">Depuis dix ans, je réalise de longs voyages lents avec un appareil photo : deux semaines à traquer la lumière des tempêtes sur les glaces de Patagonie, un hiver à réduire Hokkaido à la neige et à l'ombre, trois mille miles d'autoroute ouverte et les inconnus rencontrés en chemin. Le travail vit dans l'entre-deux — ces moments où un paysage et ceux qui le traversent deviennent la même image.</p>
+        <p style="font-size:16px;line-height:1.85;color:var(--muted);margin-bottom:22px;">Depuis dix ans, je réalise de longs voyages lents avec un appareil photo : d'Oslo au glacier du Svalbard sous les aurores boréales, un hiver à réduire Hokkaido à la neige et à l'ombre, trois mille miles d'autoroute ouverte et les inconnus rencontrés en chemin. Le travail vit dans l'entre-deux — ces moments où un paysage et ceux qui le traversent deviennent la même image.</p>
         <p style="font-size:16px;line-height:1.85;color:var(--muted);">La photographie pour le plaisir — celle qui est lente, patiente, et qui vous demande de vous arrêter et de regarder.</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:36px 48px;margin-top:56px;padding-top:40px;border-top:1px solid var(--line);">
           <div>
