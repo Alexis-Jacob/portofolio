@@ -254,10 +254,29 @@ const ACORES_PHOTOS = [
   BASE + 'v1782560315/L1009843-Modifier_b1gboi.jpg',     // 21 — falaise verte tombant dans la mer, ciel dramatique
 ];
 
+const BASE_PANO = 'https://res.cloudinary.com/g2vm121o/image/upload/w_4000/f_auto,q_auto/l_My%20Brand:alexis-jacob-black_yryv5c,w_0.2,fl_relative,o_70,g_south_east,fl_layer_apply/';
+
+const FEROE_PHOTOS = [
+  BASE      + 'v1782560973/067A7334-Modifier_uksoaz.jpg',        //  1 — village à toit de tourbe, fjord gris argenté
+  BASE      + 'v1782560950/067A7292-Modifier_o909ci.jpg',        //  2 — falaises vertes plongeant dans l\'Atlantique
+  BASE      + 'v1782560942/067A7252-Modifier-Modifier_gk7pbi.jpg', //  3 — vue encadrée entre deux rochers, îles lointaines
+  BASE      + 'v1782561005/067A7424-HDR-Modifier_kbuu4n.jpg',    //  4 — fjord calme entre deux crêtes
+  BASE_PANO + 'v1782560989/067A7393-panorama.jpg',               //  5 — panorama des fjords, cinq îles, montagnes tabulaires
+  BASE      + 'v1782560997/067A7394-Modifier_advidu.jpg',        //  6 — ville dans le fjord depuis les hauteurs, lumière dorée
+  BASE      + 'v1782561053/067A7547-Modifier_sfj7xa.jpg',        //  7 — village côtier, église rouge, lumière chaude
+  BASE      + 'v1782561029/067A7486-Modifier_alwomp.jpg',        //  8 — colline verte, phare en sommet, lumière rasante
+  BASE      + 'v1782561037/067A7492-Modifier-Modifier_urpm6e.jpg', //  9 — phare de Kallur, crête verte, falaises plongeantes
+  BASE      + 'v1782561045/067A7540-Modifier-Modifier_ghz9zj.jpg', // 10 — statue Kópakonan (selkie), montagnes tabulaires
+  BASE      + 'v1782560981/067A7377_dclce3.jpg',                 // 11 — port de nuit, chalutier illuminé en or
+  BASE      + 'v1782561013/067A7454-Modifier_fqxqpn.jpg',        // 12 — Tórshavn de nuit, ville-lumière dans le noir
+  BASE      + 'v1782561021/067A7468-Modifier_sfpbgk.jpg',        // 13 — coucher de soleil, falaises en silhouette, maison isolée
+];
+
 const SERIES = [
   { title: 'New York City',       kind: 'Voyage',   year: '2026', count: 12, blurb: 'Mai 2026, au Leica. De la hauteur des toits à l\'invisible des trottoirs — la ville dans tous ses états.', photos: NYC_PHOTOS, cover: NYC_PHOTOS[0], grad: 3 },
   { title: 'Sikkim & Ladakh',     kind: 'Voyage',   year: '2017', count: 27, blurb: 'Du festival du cham aux alpenglow du Kangchenjunga, puis le désert minéral du Ladakh. Un voyage, deux mondes himalayens.', photos: SIKKIM_PHOTOS, cover: SIKKIM_PHOTOS[21], grad: 4 },
   { title: 'Colombie',            kind: 'Voyage',   year: '2016', count: 40, blurb: 'Cartagena dorée, La Guajira jusqu\'au bout de l\'Amérique, le lac de Guatapé et les palmiers de cire de Cocora. Un pays que l\'on ne comprend qu\'en le traversant.', photos: COLOMBIA_PHOTOS, cover: COLOMBIA_PHOTOS[16], grad: 1 },
+  { title: 'Îles Féroé',          kind: 'Voyage',   year: '2018', count: 13, blurb: 'Des villages à toit de tourbe aux falaises de Kallur, du panorama des fjords aux nuits ambrées de Tórshavn. Un archipel suspendu entre ciel et Atlantique Nord.', photos: FEROE_PHOTOS, cover: FEROE_PHOTOS[8], grad: 0 },
   { title: 'Norvège',             kind: 'Voyage',   year: '2021', count: 19, blurb: 'D\'Oslo et ses sculptures au glacier du Svalbard, en passant par Bergen sous l\'orage et les minuits solaires des Lofoten.', photos: NORWAY_PHOTOS, cover: NORWAY_PHOTOS[13], grad: 5 },
   { title: 'Kilimandjaro',        kind: 'Voyage',   year: '2023', count: 19, blurb: 'Sept jours pour traverser cinq zones climatiques et atteindre le toit de l\'Afrique. De la forêt équatoriale aux glaciers du cratère, en passant par les nuits où les villes tanzaniennes brillent sous les étoiles.', photos: KILI_PHOTOS, cover: KILI_PHOTOS[9], grad: 6 },
   { title: 'Açores',              kind: 'Voyage',   year: '2023', count: 21, blurb: 'São Miguel et ses lacs de cratère, le cône parfait du Pico reflété dans ses lagunes, des falaises qui tombent dans l\'Atlantique. L\'archipel le plus vert du monde.', photos: ACORES_PHOTOS, cover: ACORES_PHOTOS[10], grad: 11 },
