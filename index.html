@@ -393,16 +393,17 @@ function home() {
       <span onclick="go('work')" style="cursor:pointer;font:400 12px 'Space Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);">Toutes les séries →</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:28px;">${featured}</div>
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:center;padding:96px 56px;margin-top:48px;background:var(--bg2);">
-    ${box(GP[0], '100%', 480)}
-    <div>
-      <div style="font:400 12px/1 'Space Mono',monospace;letter-spacing:.16em;color:var(--faint);text-transform:uppercase;margin-bottom:28px;">Derrière l'objectif</div>
-      <p style="font-family:'Instrument Serif',serif;font-size:34px;line-height:1.4;">« Je photographie l'entre-deux — cette lumière tranquille aux bords d'un voyage, là où le paysage et l'inconnu ne font qu'un. »</p>
-      <p style="margin-top:30px;font-size:15px;line-height:1.8;color:var(--muted);max-width:440px;">Une décennie à suivre les tempêtes, les routes et les saisons sous les latitudes nord.</p>
-      <span onclick="go('about')" style="display:inline-block;margin-top:30px;cursor:pointer;font:400 12px 'Space Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--accent);padding-bottom:4px;">En savoir plus →</span>
-    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:28px;">${[3,4,5].map(i => {
+      const s = SERIES[i]; if (!s) return '';
+      const [w,h] = ['100%', 300];
+      return `<div onclick="go('series',${i})" style="cursor:pointer;">
+        ${s.cover ? `<img src="${s.cover}" style="width:${w};height:${h}px;object-fit:cover;display:block;" loading="lazy">` : box(GP[s.grad],'100%',h)}
+        <div style="padding:14px 0 0;">
+          <div style="font-weight:500;font-size:18px;">${s.title}</div>
+          <div style="font:400 11px 'Space Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:6px;">${s.kind} · ${s.count} photos</div>
+        </div>
+      </div>`;
+    }).join('')}</div>
   </div>
 `;
 }
@@ -481,7 +482,7 @@ function about() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:36px 48px;margin-top:56px;padding-top:40px;border-top:1px solid var(--line);">
           <div>
             <div style="font:400 11px 'Space Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;">Matériel</div>
-            <div style="font-size:14px;line-height:2;color:var(--text2);">Canon Mark III<br>Leica typ 240</div>
+            <div style="font-size:14px;line-height:2;color:var(--text2);">Canon Mark III<br>Leica M typ 240</div>
           </div>
           <div>
             <div style="font:400 11px 'Space Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;">Basé à</div>
