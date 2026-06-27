@@ -278,9 +278,10 @@ function coverImg(s, w, h) {
 
 function readHash() {
   const h = window.location.hash.slice(1) || 'home';
-  const [view, si] = h.split('/');
+  const [view, si, ii] = h.split('/');
   S.view = ['home','work','series','about'].includes(view) ? view : 'home';
   if (si !== undefined) S.series = parseInt(si, 10) || 0;
+  S.image = ii !== undefined ? parseInt(ii, 10) : undefined;
 }
 
 function go(view, si) {
@@ -450,16 +451,19 @@ function openLB(idx) {
   lbImg().src = photos[idx];
   lbEl().classList.add('open');
   document.body.style.overflow = 'hidden';
+  history.replaceState(null, '', `#series/${S.series}/${idx}`);
 }
 
 function closeLB() {
   lbEl().classList.remove('open');
   document.body.style.overflow = '';
+  history.replaceState(null, '', `#series/${S.series}`);
 }
 
 function lbNav(dir) {
   LB.idx = (LB.idx + dir + LB.photos.length) % LB.photos.length;
   lbImg().src = LB.photos[LB.idx];
+  history.replaceState(null, '', `#series/${S.series}/${LB.idx}`);
 }
 
 document.addEventListener('keydown', e => {
@@ -483,6 +487,10 @@ function render() {
 
 readHash();
 render();
+if (S.view === 'series' && S.image !== undefined) {
+  openLB(S.image);
+  S.image = undefined;
+}
 </script>
 </body>
 </html>
