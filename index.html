@@ -286,6 +286,20 @@ const BERLIN_PHOTOS = [
   BASE + 'v1782562633/L1000533-Modifier_hw9fig.jpg',   // 12 — monument soviétique Treptower Park
 ];
 
+const PARIS_NIGHT_PHOTOS = [
+  BASE + 'v1783775640/067A6941-Modifier_p4fis7.jpg',
+  BASE + 'v1783775640/067A6988-Modifier_cxxljg.jpg',
+  BASE + 'v1783775640/067A6982-Modifier_zd3tzu.jpg',
+  BASE + 'v1783775641/067A6979-Modifier_aqe1ts.jpg',
+  BASE + 'v1783775641/067A6976_o9jakf.jpg',
+  BASE + 'v1783775641/067A6956-Modifier_sui9rw.jpg',
+];
+const PARIS_NIGHT = {
+  title: 'Paris by Night', kind: 'Ville', year: '2026', count: PARIS_NIGHT_PHOTOS.length,
+  blurb: 'Un work in progress — des images de nuit dans les rues de Paris, au fil des sorties.',
+  photos: PARIS_NIGHT_PHOTOS, cover: PARIS_NIGHT_PHOTOS[0],
+};
+
 const SERIES = [
   { title: 'New York City',       kind: 'Voyage',   year: '2026', count: 12, blurb: 'Mai 2026, au Leica. De la hauteur des toits à l\'invisible des trottoirs — la ville dans tous ses états.', photos: NYC_PHOTOS, cover: NYC_PHOTOS[0], grad: 3 },
   { title: 'Sikkim & Ladakh',     kind: 'Voyage',   year: '2017', count: 27, blurb: 'Du festival du cham aux alpenglow du Kangchenjunga, puis le désert minéral du Ladakh. Un voyage, deux mondes himalayens.', photos: SIKKIM_PHOTOS, cover: SIKKIM_PHOTOS[21], grad: 4 },
@@ -333,6 +347,7 @@ function coverImg(s, w, h) {
 
 function readHash() {
   const h = window.location.hash.slice(1) || 'home';
+  if (h === 'paris-nuit') { S.view = 'hidden'; return; }
   const [view, si, ii] = h.split('/');
   S.view = ['home','work','series','about'].includes(view) ? view : 'home';
   if (si !== undefined) S.series = parseInt(si, 10) || 0;
@@ -494,20 +509,36 @@ function about() {
   </div>`;
 }
 
+function hiddenSeries() {
+  const s = PARIS_NIGHT;
+  const gallery = s.photos.map((url, idx) =>
+    `<div style="break-inside:avoid;margin-bottom:20px;"><img src="${url}" style="width:100%;display:block;cursor:zoom-in;" loading="lazy" onclick="openLB(${idx})"></div>`
+  ).join('');
+  return `<div class="s-wrap">
+    <div class="s-head">
+      <div>
+        <div style="font:400 12px/1 'Space Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:18px;">${s.kind} · ${s.year} · ${s.count} photos</div>
+        <h1 class="s-h1">${s.title}</h1>
+      </div>
+      <p style="font-family:'Instrument Serif',serif;font-size:24px;line-height:1.45;color:var(--text2);margin:0;">${s.blurb}</p>
+    </div>
+    <div class="s-cols">${gallery}</div>
+  </div>`;
+}
+
 // — Lightbox —
 const LB = { photos: [], idx: 0, tx: 0 };
 const lbEl  = () => document.getElementById('lb');
 const lbImg = () => document.getElementById('lb-img');
 
 function openLB(idx) {
-  const photos = SERIES[S.series].photos;
+  const photos = S.view === 'hidden' ? PARIS_NIGHT.photos : SERIES[S.series].photos;
   if (!photos) return;
   LB.photos = photos;
   LB.idx = idx;
   lbImg().src = photos[idx];
   lbEl().classList.add('open');
   document.body.style.overflow = 'hidden';
-  history.replaceState(null, '', `#series/${S.series}/${idx}`);
 }
 
 function closeLB() {
@@ -536,7 +567,7 @@ lbEl().addEventListener('touchend', e => {
 });
 
 function render() {
-  const views = { home, work, series, about };
+  const views = { home, work, series, about, hidden: hiddenSeries };
   const content = (views[S.view] || home)();
   document.getElementById('app').innerHTML = nav() + content + footer();
 }
