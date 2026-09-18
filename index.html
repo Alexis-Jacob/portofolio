@@ -103,6 +103,8 @@
                   color:rgba(27,24,19,.55); background:#cdc6b8; }
     .fo-loading[hidden], .fo-btn[hidden] { display:none; }
     .fo .maplibregl-ctrl-attrib { font-size:10px; }
+    /* Pendant le survol, un doigt fait défiler la page, deux doigts pilotent la caméra. */
+    .fo.is-playing .maplibregl-canvas-container { touch-action:pan-y; }
     .fo .maplibregl-ctrl-bottom-right { bottom:128px; }   /* au-dessus de la barre de lecture */
     .e-block { margin-bottom:86px; }
     .e-block:last-child { margin-bottom:0; }
@@ -112,6 +114,9 @@
     .e-h2 { font-weight:700; font-size:56px; line-height:.95; letter-spacing:-.03em;
             text-transform:uppercase; margin:0; overflow-wrap:break-word; }
     .e-blurb { font-family:'Instrument Serif',serif; font-size:21px; line-height:1.45; color:var(--text2); margin:0; }
+    .e-hint { font:400 11px/1.5 'Space Mono',monospace; letter-spacing:.04em; color:var(--faint);
+              margin:10px 0 0; }
+    .e-hint b { color:var(--muted); font-weight:400; }
     .e-meta { display:flex; flex-wrap:wrap; gap:0 46px; margin:30px 0 0; }
     .e-meta div { padding:14px 0; }
     .e-meta span { display:block; font:400 10px/1 'Space Mono',monospace; letter-spacing:.14em;
@@ -644,6 +649,7 @@ function ete2026() {
         <p class="e-blurb">${meta.blurb || ''}</p>
       </div>
       <div class="fo" id="fo-${t.id}"></div>
+      <p class="e-hint">Pendant le survol : glissez sur la carte pour tourner autour, molette ou pincement à deux doigts pour la distance, <b>Cap</b> pour figer l'orientation.</p>
       <div class="e-meta">
         <div><span>Distance</span><b>${(s.distance / 1000).toFixed(1).replace('.', ',')} km</b></div>
         <div><span>Dénivelé +</span><b>${s.ascent} m</b></div>
