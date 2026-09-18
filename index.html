@@ -390,6 +390,12 @@ const SERIES = [
   { title: 'Berlin',              kind: 'Voyage',   year: '2024', count: 11, blurb: 'Berlin en noir et blanc au Leica — du Humboldt Forum au monument de Treptower Park, en passant par les voies ferrées, le Sony Center et la Volksbühne un soir de représentation.', photos: BERLIN_PHOTOS, cover: BERLIN_PHOTOS[1], grad: 7 },
 ];
 
+// L'accueil, l'index des travaux et la navigation précédent/suivant lisent tous
+// SERIES dans l'ordre du tableau : on le trie ici une fois pour toutes, de la
+// série la plus récente à la plus ancienne. Le tri est stable, donc l'ordre saisi
+// ci-dessus départage les séries d'une même année.
+SERIES.sort((a, b) => Number(b.year) - Number(a.year));
+
 const HEIGHTS = [360, 250, 440, 300, 320, 400, 270, 360];
 
 // 12 gradients simulating landscape/travel tones
