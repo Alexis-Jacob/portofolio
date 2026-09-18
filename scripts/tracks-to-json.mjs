@@ -4,6 +4,7 @@
 //        node scripts/tracks-to-json.mjs --json tracks/sortie.gpx   (JSON brut sur stdout)
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // — Types de base FIT : [taille en octets, lecteur, valeur "invalide"] —
 const BASE = {
@@ -366,7 +367,9 @@ export function parseTrack(buf, file) {
 }
 
 // — CLI —
-const isMain = process.argv[1] && import.meta.url.endsWith(basename(process.argv[1]));
+// Comparer les URL, pas les suffixes : un fichier « test-tracks-to-json.mjs » déclencherait
+// sinon le script au moment de l'importer.
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const args = process.argv.slice(2);
   const rawJson = args.includes('--json');

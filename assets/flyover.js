@@ -59,6 +59,7 @@
   }
 
   // — Formatage —
+  function spaced(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f'); }
   function km(m) { return (m / 1000).toFixed(1).replace('.', ',') + ' km'; }
   function hms(s) {
     var h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
@@ -79,6 +80,7 @@
     this.startDate = new Date(track.date);
     this.tz = track.tzOffset || 0;
     this.duration = opts.duration || 75;     // secondes de survol pour la trace entière
+    this.peaks = opts.peaks || [];           // [lon, lat, altitude, nom] autour de la trace
     this.rate = 1;
     this.playing = false;
     this.freeLook = false;
@@ -222,6 +224,7 @@
           done: { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } } },
           here: { type: 'geojson', data: { type: 'Feature', geometry: { type: 'Point', coordinates: this.pts[0].slice(0, 2) } } },
           pins: { type: 'geojson', data: this.pinData() },
+          peaks: { type: 'geojson', data: this.peakData() },
         },
         layers: [
           { id: 'fond', type: 'background', paint: { 'background-color': '#cdc6b8' } },
@@ -233,6 +236,17 @@
             paint: { 'line-color': '#f8f7f3', 'line-width': 2.5, 'line-opacity': 0.5 } },
           { id: 'route-done', type: 'line', source: 'done', layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: { 'line-color': DONE, 'line-width': 5 } },
+          { id: 'peaks-dot', type: 'circle', source: 'peaks', minzoom: 10.5,
+            paint: { 'circle-radius': 2.5, 'circle-color': 'rgba(248,247,243,.85)',
+                     'circle-stroke-width': 1, 'circle-stroke-color': 'rgba(27,24,19,.7)' } },
+          { id: 'peaks-label', type: 'symbol', source: 'peaks', minzoom: 10.5,
+            layout: { 'text-field': ['get', 'label'], 'text-size': 10.5, 'text-line-height': 1.15,
+                      'text-offset': [0, -0.7], 'text-anchor': 'bottom', 'text-padding': 6,
+                      'text-allow-overlap': false, 'text-optional': true,
+                      // les plus hauts s'affichent en premier quand ça se bouscule
+                      'symbol-sort-key': ['-', 0, ['get', 'ele']] },
+            paint: { 'text-color': 'rgba(248,247,243,.92)', 'text-halo-color': 'rgba(20,18,15,.85)',
+                     'text-halo-width': 1.3 } },
           { id: 'pins-dot', type: 'circle', source: 'pins',
             paint: { 'circle-radius': 5, 'circle-color': '#f8f7f3', 'circle-stroke-width': 2, 'circle-stroke-color': '#1b1813' } },
           { id: 'pins-label', type: 'symbol', source: 'pins',
@@ -281,6 +295,30 @@
     for (var i = 1; i < pts.length; i++) if (pts[i][2] > pts[top][2]) top = i;
     pin(pts[top], 'Sommet · ' + pts[top][2] + ' m');
     pin(pts[pts.length - 1], 'Arrivée');
+    return { type: 'FeatureCollection', features: feats };
+  };
+
+  // Sommets voisins : on écarte celui qui tombe sur le point haut de la trace,
+  // déjà signalé par son propre repère.
+  Flyover.prototype.peakData = function () {
+    var pts = this.pts, top = 0;
+    for (var i = 1; i < pts.length; i++) if (pts[i][2] > pts[top][2]) top = i;
+    var summit = [pts[top][0], pts[top][1]];
+    var feats = [];
+    for (var j = 0; j < this.peaks.length; j++) {
+      var p = this.peaks[j];
+      if (!p || p.length < 4) continue;
+      if (haversine([p[0], p[1]], summit) < 250) continue;
+      var ele = typeof p[2] === 'number' ? p[2] : null;
+      feats.push({
+        type: 'Feature',
+        properties: {
+          label: p[3] + (ele === null ? '' : '\n' + spaced(ele) + ' m'),
+          ele: ele === null ? 0 : ele,
+        },
+        geometry: { type: 'Point', coordinates: [p[0], p[1]] },
+      });
+    }
     return { type: 'FeatureCollection', features: feats };
   };
 

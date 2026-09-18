@@ -13,6 +13,8 @@ distance / altitude / D+ / heure en direct.
 | `tracks/` | traces brutes, `.fit` (montre) ou `.gpx` |
 | `scripts/tracks-to-json.mjs` | décodeur sans dépendance : FIT et GPX → JSON compact |
 | `data/ete-2026.js` | données générées (`window.ETE2026_TRACKS`) — ne pas éditer à la main |
+| `scripts/peaks.mjs` | récupère les sommets nommés autour des traces (OpenStreetMap) |
+| `data/peaks.js` | sommets générés — facultatif, le survol marche sans |
 | `assets/flyover.js` | moteur de survol (MapLibre GL + relief), chargé à la demande |
 
 ### Ajouter une sortie
@@ -28,6 +30,24 @@ le nom du fichier (ou du GPX) sert de titre.
 
 Options du script : `--json` (JSON brut sur stdout), `--tz=Europe/Paris` (fuseau retenu
 pour les GPX ; les fichiers FIT portent le leur).
+
+### Sommets alentour
+
+Les sommets nommés affichés autour de la trace viennent d'OpenStreetMap et sont
+récupérés une fois pour toutes, à la main :
+
+```sh
+node scripts/peaks.mjs                       # met à jour data/peaks.js
+node scripts/peaks.mjs --radius=15 --max=60  # plus large, plus de sommets
+```
+
+Le script interroge Overpass pour chaque trace, garde les sommets nommés situés
+dans le rayon demandé (12 km par défaut), les trie par altitude et plafonne leur
+nombre (45 par défaut). Une trace dont la requête échoue conserve les sommets
+déjà connus. Overpass étant un service bénévole, le script espace ses requêtes :
+à ne relancer que lorsqu'on ajoute une sortie.
+
+Sans `data/peaks.js`, le survol fonctionne exactement pareil, sans les étiquettes.
 
 Ce que le script calcule : distance, dénivelé (valeur barométrique de la montre pour les FIT,
 sinon hystérésis de 3 m sur l'altitude lissée), temps en mouvement, altitudes extrêmes,
