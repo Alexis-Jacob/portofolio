@@ -682,7 +682,13 @@ function loadEte() {
     el.src = src; el.async = true; el.onload = res; el.onerror = () => rej(new Error(src));
     document.head.appendChild(el);
   });
-  etePromise = Promise.all([one('data/ete-2026.js'), one('assets/flyover.js')]);
+  // data/peaks.js est facultatif (généré par scripts/peaks.mjs) : son absence
+  // ne doit pas empêcher le survol de se charger.
+  etePromise = Promise.all([
+    one('data/ete-2026.js'),
+    one('assets/flyover.js'),
+    one('data/peaks.js').catch(() => {}),
+  ]);
   return etePromise;
 }
 
@@ -692,7 +698,8 @@ function mountEte() {
     const start = (el, t) => {
       if (el.dataset.mounted) return;
       el.dataset.mounted = '1';
-      window.Flyover.mount(el, t).then(fo => { el.__fo = fo; });
+      const peaks = (window.ETE2026_PEAKS || {})[t.id];
+      window.Flyover.mount(el, t, { peaks }).then(fo => { el.__fo = fo; });
     };
     // Une carte 3D par sortie : on n'en initialise une que lorsqu'elle approche de l'écran.
     const io = 'IntersectionObserver' in window
