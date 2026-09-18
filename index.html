@@ -63,7 +63,7 @@
     }
     /* — Survol 3D (section Été 2026) — */
     .fo { position:relative; width:100%; aspect-ratio:16/10; min-height:420px; max-height:76vh;
-          background:#14120f; overflow:hidden; border:1px solid var(--line); }
+          background:#cdc6b8; overflow:hidden; border:1px solid var(--line); }
     .fo .fo-map { position:absolute; inset:0; }
     .fo canvas { outline:none; }
     .fo-hud { position:absolute; top:0; left:0; display:flex; gap:1px; z-index:3; pointer-events:none; }
@@ -97,7 +97,8 @@
                font:400 10px/1 'Space Mono',monospace; letter-spacing:.12em; text-transform:uppercase; padding:8px 12px; }
     .fo-chip.is-on { background:#f0a03c; color:#14120f; }
     .fo-loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:4;
-                  font:400 11px/1 'Space Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:rgba(248,247,243,.6); }
+                  font:400 11px/1 'Space Mono',monospace; letter-spacing:.14em; text-transform:uppercase;
+                  color:rgba(27,24,19,.55); background:#cdc6b8; }
     .fo-loading[hidden], .fo-btn[hidden] { display:none; }
     .fo .maplibregl-ctrl-attrib { font-size:10px; }
     .fo .maplibregl-ctrl-bottom-right { bottom:128px; }   /* au-dessus de la barre de lecture */
@@ -683,7 +684,7 @@ function mountEte() {
     const start = (el, t) => {
       if (el.dataset.mounted) return;
       el.dataset.mounted = '1';
-      window.Flyover.mount(el, t);
+      window.Flyover.mount(el, t).then(fo => { el.__fo = fo; });
     };
     // Une carte 3D par sortie : on n'en initialise une que lorsqu'elle approche de l'écran.
     const io = 'IntersectionObserver' in window

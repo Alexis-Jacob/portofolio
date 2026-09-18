@@ -25,6 +25,10 @@
   };
   var DEM_TILES = ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'];
 
+  var EXAGGERATION = 1.3;   // doit rester aligné avec setTerrain()
+  var CAM_BACK = 950;       // distance de la caméra derrière le coureur, en mètres
+  var CLEARANCE = 200;      // garde minimale au-dessus du relief, en mètres
+
   // — Géométrie —
   var RAD = Math.PI / 180;
   function haversine(a, b) {
@@ -39,6 +43,15 @@
       Math.sin(a[1] * RAD) * Math.cos(b[1] * RAD) * Math.cos((b[0] - a[0]) * RAD);
     return (Math.atan2(y, x) / RAD + 360) % 360;
   }
+  // Point situé à `dist` mètres dans la direction `brng` depuis (lng, lat).
+  function destination(lng, lat, brng, dist) {
+    var d = dist / 6371000, b = brng * RAD, la = lat * RAD, lo = lng * RAD;
+    var la2 = Math.asin(Math.sin(la) * Math.cos(d) + Math.cos(la) * Math.sin(d) * Math.cos(b));
+    var lo2 = lo + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(la),
+                              Math.cos(d) - Math.sin(la) * Math.sin(la2));
+    return [lo2 / RAD, la2 / RAD];
+  }
+
   function lerpAngle(from, to, t) {
     var d = ((to - from + 540) % 360) - 180;
     return (from + d * t + 360) % 360;
@@ -201,6 +214,7 @@
           pins: { type: 'geojson', data: this.pinData() },
         },
         layers: [
+          { id: 'fond', type: 'background', paint: { 'background-color': '#cdc6b8' } },
           { id: 'base', type: 'raster', source: 'base' },
           { id: 'hillshade', type: 'hillshade', source: 'demShade', paint: { 'hillshade-exaggeration': 0.28, 'hillshade-shadow-color': '#1b1813' } },
           { id: 'route-halo', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
@@ -297,12 +311,7 @@
       var ahead = this.at(Math.min(this.total, d + Math.max(60, this.total * 0.02)));
       var target = bearing([p.lng, p.lat], [ahead.lng, ahead.lat]);
       this.heading = this.heading === null ? target : lerpAngle(this.heading, target, 0.06);
-      this.map.jumpTo({
-        center: [p.lng, p.lat],
-        bearing: this.heading,
-        pitch: 70,
-        zoom: this.map.getZoom() < 13 || this.map.getZoom() > 16.5 ? 15 : this.map.getZoom(),
-      });
+      this.chase(p, this.heading);
     }
 
     // HUD
@@ -322,6 +331,31 @@
     });
     this.q.note.textContent = note;
     this.q.note.classList.toggle('is-on', !!note);
+  };
+
+  // Altitude du relief affiché en un point (le DEM est exagéré, la valeur l'est aussi).
+  Flyover.prototype.ground = function (lng, lat, fallback) {
+    var z = this.map.queryTerrainElevation([lng, lat]);
+    return (z === null || z === undefined || !isFinite(z)) ? fallback : z;
+  };
+
+  // Place la caméra derrière le point courant, à une altitude qui domine tout le
+  // relief situé entre elle et lui. On ne relit jamais le zoom de la carte : MapLibre
+  // le recalcule lui-même quand l'altitude du sol change, et le réinjecter créait une
+  // boucle qui rapprochait la caméra jusqu'à l'enfoncer dans la montagne.
+  Flyover.prototype.chase = function (p, heading) {
+    var map = this.map;
+    var fallback = p.alt * EXAGGERATION;
+    var target = this.ground(p.lng, p.lat, fallback);
+    var peak = target;
+    for (var i = 1; i <= 6; i++) {
+      var s = destination(p.lng, p.lat, heading + 180, CAM_BACK * i / 6);
+      peak = Math.max(peak, this.ground(s[0], s[1], fallback));
+    }
+    var cam = destination(p.lng, p.lat, heading + 180, CAM_BACK);
+    map.jumpTo(map.calculateCameraOptionsFromTo(
+      { lng: cam[0], lat: cam[1] }, peak + CLEARANCE,
+      { lng: p.lng, lat: p.lat }, target));
   };
 
   // — Lecture —
