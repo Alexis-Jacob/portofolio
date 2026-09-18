@@ -107,6 +107,9 @@
     // minuscule et la caméra suit chaque lacet : on la borne en mètres absolus.
     this.lookAhead = Math.max(250, Math.min(600, this.total * 0.02));
     this.camBack = Math.max(300, Math.min(950, this.total / 15));
+    this.camBack0 = this.camBack;
+    this.orbit = 0;      // décalage d'angle autour du coureur, en degrés
+    this.height = 1;     // hauteur de la caméra, en multiples de la valeur par défaut
     this.lockHeading = false;
 
     this.build();
@@ -150,7 +153,7 @@
           '<button class="fo-btn fo-rate" data-fo="rate">1×</button>' +
           '<button class="fo-btn fo-lock" data-fo="lock" title="Figer l\'orientation de la caméra" aria-pressed="false">Cap</button>' +
           '<input class="fo-scrub" data-fo="scrub" type="range" min="0" max="1000" value="0" aria-label="Position sur le parcours">' +
-          '<button class="fo-btn fo-recenter" data-fo="recenter" hidden>Recentrer</button>' +
+          '<button class="fo-btn fo-recenter" data-fo="recenter" hidden>Recadrer</button>' +
         '</div>' +
       '</div>' +
       '<div class="fo-basemaps">' +
@@ -262,12 +265,7 @@
       if (e && e.error && /dem|terrarium/i.test(String(e.error.url || ''))) return; // tuile de relief manquante : pas bloquant
     });
 
-    // Toute manipulation de la carte pendant la lecture bascule en vue libre.
-    ['dragstart', 'rotatestart', 'pitchstart', 'zoomstart'].forEach(function (ev) {
-      map.on(ev, function (e) {
-        if (e.originalEvent && self.playing) { self.freeLook = true; self.q.recenter.hidden = false; }
-      });
-    });
+    this.bindGestures();
   };
 
   Flyover.prototype.pinData = function () {
@@ -368,9 +366,10 @@
   // boucle qui rapprochait la caméra jusqu'à l'enfoncer dans la montagne.
   Flyover.prototype.chase = function (p, heading) {
     var map = this.map;
+    var view = (heading + this.orbit + 360) % 360;   // angle de vue choisi par le spectateur
     var fallback = p.alt * EXAGGERATION;
     var target = this.ground(p.lng, p.lat, fallback);
-    var cam = destination(p.lng, p.lat, heading + 180, this.camBack);
+    var cam = destination(p.lng, p.lat, view + 180, this.camBack);
     var now = performance.now();
 
     // Sonder le relief à chaque image coûte cher pour rien : le point haut entre la
@@ -379,13 +378,15 @@
     if (!this._peakAt || now - this._peakAt > 150) {
       var peak = target;
       for (var i = 1; i <= 4; i++) {
-        var s = destination(p.lng, p.lat, heading + 180, this.camBack * i / 4);
+        var s = destination(p.lng, p.lat, view + 180, this.camBack * i / 4);
         peak = Math.max(peak, this.ground(s[0], s[1], fallback));
       }
       this._peak = peak;
       this._peakAt = now;
     }
-    var wanted = Math.max(this._peak, target) + CLEARANCE;
+    // Hauteur demandée par le spectateur, jamais en dessous de la garde au relief.
+    var wanted = Math.max(Math.max(this._peak, target) + CLEARANCE,
+                          target + this.camBack * 0.45 * this.height);
 
     // On monte d'un coup quand le relief l'exige, on redescend en douceur : la garde
     // au sol reste garantie, sans à-coups quand la paroi s'éloigne.
@@ -397,13 +398,91 @@
       { lng: p.lng, lat: p.lat }, target));
   };
 
+  // Pendant la lecture, la carte n'est plus manipulée par MapLibre : les gestes
+  // pilotent la caméra de poursuite (tourner autour, monter, s'éloigner) et le
+  // coureur reste au centre. À l'arrêt, la carte redevient une carte normale.
+  var HANDLERS = ['dragPan', 'scrollZoom', 'dragRotate', 'touchZoomRotate', 'doubleClickZoom', 'keyboard'];
+  Flyover.prototype.mapHandlers = function (on) {
+    var m = this.map;
+    HANDLERS.forEach(function (h) { if (m[h]) on ? m[h].enable() : m[h].disable(); });
+  };
+
+  Flyover.prototype.adjusted = function () {
+    return Math.abs(this.orbit) > 0.5 || Math.abs(this.height - 1) > 0.02 ||
+           Math.abs(this.camBack - this.camBack0) > 1;
+  };
+
+  Flyover.prototype.touched = function () {
+    this.q.recenter.hidden = !this.adjusted();
+    this._camAlt = undefined;   // le réglage doit répondre tout de suite, sans lissage
+    if (this.playing) this.update(this.progress, true);
+  };
+
+  Flyover.prototype.bindGestures = function () {
+    var self = this;
+    var el = this.map.getCanvasContainer();
+    var pointers = {};
+    var pinch = null;
+
+    var live = function () { return self.playing; };
+    var list = function () { return Object.keys(pointers).map(function (k) { return pointers[k]; }); };
+
+    el.addEventListener('pointerdown', function (e) {
+      if (!live()) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      pointers[e.pointerId] = { x: e.clientX, y: e.clientY, type: e.pointerType };
+      if (e.pointerType === 'mouse' && el.setPointerCapture) el.setPointerCapture(e.pointerId);
+      var pts = list();
+      if (pts.length === 2) pinch = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    });
+
+    el.addEventListener('pointermove', function (e) {
+      var prev = pointers[e.pointerId];
+      if (!live() || !prev) return;
+      var dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+      prev.x = e.clientX; prev.y = e.clientY;
+      var pts = list();
+      // Au doigt, il faut deux points de contact : un seul doigt doit pouvoir
+      // faire défiler la page par-dessus la carte.
+      if (e.pointerType === 'touch' && pts.length < 2) return;
+      e.preventDefault();
+      if (pts.length >= 2) {
+        var d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (pinch) self.setBack(self.camBack * (pinch / (d || pinch)));
+        pinch = d;
+        dx /= 2; dy /= 2;   // le geste est compté une fois par doigt
+      }
+      self.orbit = ((self.orbit - dx * 0.3 + 180) % 360 + 360) % 360 - 180;
+      self.height = Math.max(0.4, Math.min(3.5, self.height * (1 + dy * 0.005)));
+      self.touched();
+    }, { passive: false });
+
+    var end = function (e) {
+      delete pointers[e.pointerId];
+      if (list().length < 2) pinch = null;
+    };
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) { el.addEventListener(t, end); });
+
+    el.addEventListener('wheel', function (e) {
+      if (!live()) return;
+      e.preventDefault();
+      self.setBack(self.camBack * Math.pow(1.0016, e.deltaY));
+      self.touched();
+    }, { passive: false });
+  };
+
+  Flyover.prototype.setBack = function (v) {
+    this.camBack = Math.max(120, Math.min(6000, v));
+  };
+
   // — Lecture —
   Flyover.prototype.play = function () {
     if (this.progress >= 1) this.progress = 0;
     this._camAlt = undefined;
     this.playing = true;
     this.freeLook = false;
-    this.q.recenter.hidden = true;
+    this.q.recenter.hidden = !this.adjusted();
+    this.mapHandlers(false);
     this.q.play.textContent = '❚❚';
     this.q.play.setAttribute('aria-label', 'Mettre en pause');
     this.el.classList.add('is-playing');
@@ -429,6 +508,7 @@
 
   Flyover.prototype.stop = function (finished) {
     this.playing = false;
+    this.mapHandlers(true);
     cancelAnimationFrame(this._raf);
     this.q.play.textContent = finished ? '↻' : '▶';
     this.q.play.setAttribute('aria-label', finished ? 'Recommencer' : 'Lancer le survol');
@@ -454,12 +534,13 @@
     q.scrub.addEventListener('input', function () {
       self.stop();
       self.freeLook = false;
-      q.recenter.hidden = true;
       if (!self.lockHeading) self.heading = null;   // recadrage immédiat
       self.update(+q.scrub.value / 1000, true);
     });
     q.recenter.addEventListener('click', function () {
-      self.freeLook = false; self.heading = null; q.recenter.hidden = true;
+      self.orbit = 0; self.height = 1; self.camBack = self.camBack0;
+      self.freeLook = false; self._camAlt = undefined;
+      q.recenter.hidden = true;
       self.update(self.progress, true);
     });
     Array.prototype.forEach.call(this.el.querySelectorAll('[data-basemap]'), function (btn) {
