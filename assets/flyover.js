@@ -26,8 +26,9 @@
   var DEM_TILES = ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'];
 
   var EXAGGERATION = 1.3;   // doit rester aligné avec setTerrain()
-  var CAM_BACK = 950;       // distance de la caméra derrière le coureur, en mètres
   var CLEARANCE = 200;      // garde minimale au-dessus du relief, en mètres
+  var TAU = 1.1;            // constante de temps du lissage du cap, en secondes
+  var MAX_TURN = 45;        // vitesse de rotation maximale, en degrés par seconde (× la vitesse de lecture)
 
   // — Géométrie —
   var RAD = Math.PI / 180;
@@ -102,6 +103,11 @@
     this.cum = cum;
     this.gain = gain;
     this.total = cum[cum.length - 1] || 1;
+    // Sur une trace courte et sinueuse, une anticipation proportionnelle devient
+    // minuscule et la caméra suit chaque lacet : on la borne en mètres absolus.
+    this.lookAhead = Math.max(250, Math.min(600, this.total * 0.02));
+    this.camBack = Math.max(300, Math.min(950, this.total / 15));
+    this.lockHeading = false;
 
     this.build();
   }
@@ -142,6 +148,7 @@
           '<button class="fo-btn fo-play" data-fo="play" aria-label="Lancer le survol">▶</button>' +
           '<button class="fo-btn" data-fo="restart" aria-label="Recommencer">↻</button>' +
           '<button class="fo-btn fo-rate" data-fo="rate">1×</button>' +
+          '<button class="fo-btn fo-lock" data-fo="lock" title="Figer l\'orientation de la caméra" aria-pressed="false">Cap</button>' +
           '<input class="fo-scrub" data-fo="scrub" type="range" min="0" max="1000" value="0" aria-label="Position sur le parcours">' +
           '<button class="fo-btn fo-recenter" data-fo="recenter" hidden>Recentrer</button>' +
         '</div>' +
@@ -308,9 +315,9 @@
 
     // Caméra de poursuite
     if (moveCamera && !this.freeLook) {
-      var ahead = this.at(Math.min(this.total, d + Math.max(60, this.total * 0.02)));
+      var ahead = this.at(Math.min(this.total, d + this.lookAhead));
       var target = bearing([p.lng, p.lat], [ahead.lng, ahead.lat]);
-      this.heading = this.heading === null ? target : lerpAngle(this.heading, target, 0.06);
+      this.heading = this.steer(target);
       this.chase(p, this.heading);
     }
 
@@ -333,6 +340,22 @@
     this.q.note.classList.toggle('is-on', !!note);
   };
 
+  // Oriente la caméra vers `target` sans jamais pivoter plus vite que MAX_TURN.
+  // Le lissage se fait sur le temps écoulé, pas sur le nombre d'images : la rotation
+  // est identique sur un téléphone poussif et sur un écran à 120 Hz.
+  Flyover.prototype.steer = function (target) {
+    var now = performance.now();
+    var dt = this._lastSteer ? Math.min(0.12, (now - this._lastSteer) / 1000) : 0;
+    this._lastSteer = now;
+    if (this.heading === null) return target;          // premier cadrage : on adopte le cap
+    if (this.lockHeading) return this.heading;         // cap figé par le spectateur
+    var eased = lerpAngle(this.heading, target, 1 - Math.exp(-dt / TAU));
+    var step = ((eased - this.heading + 540) % 360) - 180;
+    var max = MAX_TURN * (this.rate || 1) * dt;
+    if (step > max) step = max; else if (step < -max) step = -max;
+    return (this.heading + step + 360) % 360;
+  };
+
   // Altitude du relief affiché en un point (le DEM est exagéré, la valeur l'est aussi).
   Flyover.prototype.ground = function (lng, lat, fallback) {
     var z = this.map.queryTerrainElevation([lng, lat]);
@@ -347,20 +370,37 @@
     var map = this.map;
     var fallback = p.alt * EXAGGERATION;
     var target = this.ground(p.lng, p.lat, fallback);
-    var peak = target;
-    for (var i = 1; i <= 6; i++) {
-      var s = destination(p.lng, p.lat, heading + 180, CAM_BACK * i / 6);
-      peak = Math.max(peak, this.ground(s[0], s[1], fallback));
+    var cam = destination(p.lng, p.lat, heading + 180, this.camBack);
+    var now = performance.now();
+
+    // Sonder le relief à chaque image coûte cher pour rien : le point haut entre la
+    // caméra et le coureur ne bouge pas d'une image à l'autre. On le recalcule tous
+    // les 150 ms, et on garde l'altitude entre deux mesures.
+    if (!this._peakAt || now - this._peakAt > 150) {
+      var peak = target;
+      for (var i = 1; i <= 4; i++) {
+        var s = destination(p.lng, p.lat, heading + 180, this.camBack * i / 4);
+        peak = Math.max(peak, this.ground(s[0], s[1], fallback));
+      }
+      this._peak = peak;
+      this._peakAt = now;
     }
-    var cam = destination(p.lng, p.lat, heading + 180, CAM_BACK);
+    var wanted = Math.max(this._peak, target) + CLEARANCE;
+
+    // On monte d'un coup quand le relief l'exige, on redescend en douceur : la garde
+    // au sol reste garantie, sans à-coups quand la paroi s'éloigne.
+    if (this._camAlt === undefined || wanted > this._camAlt) this._camAlt = wanted;
+    else this._camAlt += (wanted - this._camAlt) * 0.08;
+
     map.jumpTo(map.calculateCameraOptionsFromTo(
-      { lng: cam[0], lat: cam[1] }, peak + CLEARANCE,
+      { lng: cam[0], lat: cam[1] }, this._camAlt,
       { lng: p.lng, lat: p.lat }, target));
   };
 
   // — Lecture —
   Flyover.prototype.play = function () {
     if (this.progress >= 1) this.progress = 0;
+    this._camAlt = undefined;
     this.playing = true;
     this.freeLook = false;
     this.q.recenter.hidden = true;
@@ -405,10 +445,17 @@
       q.rate.textContent = self.rate + '×';
       if (self.playing) self.anchor();
     });
+    q.lock.addEventListener('click', function () {
+      self.lockHeading = !self.lockHeading;
+      q.lock.classList.toggle('is-on', self.lockHeading);
+      q.lock.setAttribute('aria-pressed', self.lockHeading ? 'true' : 'false');
+      q.lock.title = self.lockHeading ? 'Rendre l\'orientation automatique' : 'Figer l\'orientation de la caméra';
+    });
     q.scrub.addEventListener('input', function () {
       self.stop();
       self.freeLook = false;
       q.recenter.hidden = true;
+      if (!self.lockHeading) self.heading = null;   // recadrage immédiat
       self.update(+q.scrub.value / 1000, true);
     });
     q.recenter.addEventListener('click', function () {
