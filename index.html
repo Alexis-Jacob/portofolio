@@ -61,6 +61,76 @@
       .s-h1 { font-size:44px; }
       .s-cols { column-count:2; }
     }
+    /* — Survol 3D (section Été 2026) — */
+    .fo { position:relative; width:100%; aspect-ratio:16/10; min-height:420px; max-height:76vh;
+          background:#14120f; overflow:hidden; border:1px solid var(--line); }
+    .fo .fo-map { position:absolute; inset:0; }
+    .fo canvas { outline:none; }
+    .fo-hud { position:absolute; top:0; left:0; display:flex; gap:1px; z-index:3; pointer-events:none; }
+    .fo-stat { background:rgba(20,18,15,.72); backdrop-filter:blur(8px); padding:12px 18px; min-width:104px; }
+    .fo-stat span { display:block; font:400 9px/1 'Space Mono',monospace; letter-spacing:.16em;
+                    text-transform:uppercase; color:rgba(248,247,243,.55); margin-bottom:7px; }
+    .fo-stat b { font:500 19px/1 'Space Grotesk',sans-serif; color:#f8f7f3; font-variant-numeric:tabular-nums; }
+    .fo-note { position:absolute; top:18px; left:50%; transform:translateX(-50%); z-index:3;
+               font:400 11px/1 'Space Mono',monospace; letter-spacing:.12em; text-transform:uppercase;
+               color:#14120f; background:#f0a03c; padding:8px 14px; opacity:0; transition:opacity .3s; pointer-events:none; }
+    .fo-note.is-on { opacity:1; }
+    .fo-bottom { position:absolute; left:0; right:0; bottom:0; z-index:3;
+                 background:linear-gradient(transparent,rgba(20,18,15,.82) 38%); padding:38px 16px 14px; }
+    .fo-profile { height:64px; margin-bottom:10px; }
+    .fo-profile svg { width:100%; height:100%; display:block; }
+    .fo-prof-bg { fill:none; stroke:rgba(248,247,243,.32); stroke-width:1.5; vector-effect:non-scaling-stroke; }
+    .fo-prof-fg { fill:none; stroke:#f0a03c; stroke-width:2.5; vector-effect:non-scaling-stroke; }
+    .fo-pause { stroke:rgba(248,247,243,.3); stroke-width:1; stroke-dasharray:3 3; vector-effect:non-scaling-stroke; }
+    .fo-controls { display:flex; align-items:center; gap:10px; }
+    .fo-btn { flex:none; background:rgba(248,247,243,.1); border:1px solid rgba(248,247,243,.25); color:#f8f7f3;
+              font:400 12px/1 'Space Mono',monospace; letter-spacing:.06em; height:34px; min-width:34px;
+              padding:0 10px; cursor:pointer; transition:background .2s,border-color .2s; }
+    .fo-btn:hover { background:rgba(240,160,60,.85); border-color:#f0a03c; color:#14120f; }
+    .fo-play { font-size:13px; }
+    .fo-recenter { text-transform:uppercase; font-size:10px; letter-spacing:.12em; }
+    .fo-scrub { flex:1; -webkit-appearance:none; appearance:none; height:3px; background:rgba(248,247,243,.25); cursor:pointer; }
+    .fo-scrub::-webkit-slider-thumb { -webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:#f0a03c; cursor:pointer; }
+    .fo-scrub::-moz-range-thumb { width:13px; height:13px; border:none; border-radius:50%; background:#f0a03c; cursor:pointer; }
+    .fo-basemaps { position:absolute; left:16px; bottom:118px; z-index:3; display:flex; gap:1px; }
+    .fo-chip { background:rgba(20,18,15,.72); border:none; color:rgba(248,247,243,.6); cursor:pointer;
+               font:400 10px/1 'Space Mono',monospace; letter-spacing:.12em; text-transform:uppercase; padding:8px 12px; }
+    .fo-chip.is-on { background:#f0a03c; color:#14120f; }
+    .fo-loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:4;
+                  font:400 11px/1 'Space Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:rgba(248,247,243,.6); }
+    .fo-loading[hidden], .fo-btn[hidden] { display:none; }
+    .fo .maplibregl-ctrl-attrib { font-size:10px; }
+    .fo .maplibregl-ctrl-bottom-right { bottom:128px; }   /* au-dessus de la barre de lecture */
+    .e-block { margin-bottom:86px; }
+    .e-block:last-child { margin-bottom:0; }
+    .e-head { display:grid; grid-template-columns:1fr 360px; gap:48px; align-items:end; margin-bottom:26px; }
+    .e-kicker { font:400 12px/1 'Space Mono',monospace; letter-spacing:.14em; text-transform:uppercase;
+                color:var(--accent); margin-bottom:16px; }
+    .e-h2 { font-weight:700; font-size:56px; line-height:.95; letter-spacing:-.03em;
+            text-transform:uppercase; margin:0; overflow-wrap:break-word; }
+    .e-blurb { font-family:'Instrument Serif',serif; font-size:21px; line-height:1.45; color:var(--text2); margin:0; }
+    .e-meta { display:flex; flex-wrap:wrap; gap:0 46px; margin:30px 0 0; }
+    .e-meta div { padding:14px 0; }
+    .e-meta span { display:block; font:400 10px/1 'Space Mono',monospace; letter-spacing:.14em;
+                   text-transform:uppercase; color:var(--faint); margin-bottom:9px; }
+    .e-meta b { font:400 26px/1 'Instrument Serif',serif; color:var(--text); font-variant-numeric:tabular-nums; }
+    @media (max-width: 700px) {
+      .fo { aspect-ratio:3/4; min-height:460px; }
+      .fo-stat { min-width:0; padding:9px 12px; }
+      .fo-stat b { font-size:15px; }
+      .fo-hud { width:100%; }
+      .fo-stat { flex:1; }
+      .fo-basemaps { top:58px; bottom:auto; left:0; right:auto; }
+      .fo-note { top:auto; bottom:170px; }
+      .fo .maplibregl-ctrl-top-right { display:none; }    /* pincer/glisser suffit au doigt */
+      .fo .maplibregl-ctrl-bottom-right { bottom:112px; }
+      .e-block { margin-bottom:56px; }
+      .e-head { grid-template-columns:1fr; gap:18px; }
+      .e-h2 { font-size:34px; }
+      .e-blurb { font-size:18px; }
+      .e-meta { gap:0 28px; }
+      .e-meta b { font-size:21px; }
+    }
     @media (max-width: 600px) {
       #lb-prev, #lb-next { font-size: 38px; padding: 12px 16px; opacity: .7; }
     }
@@ -348,6 +418,7 @@ function coverImg(s, w, h) {
 function readHash() {
   const h = window.location.hash.slice(1) || 'home';
   if (h === 'paris-nuit') { S.view = 'hidden'; return; }
+  if (h === 'ete-2026') { S.view = 'ete2026'; return; }
   const [view, si, ii] = h.split('/');
   S.view = ['home','work','series','about'].includes(view) ? view : 'home';
   if (si !== undefined) S.series = parseInt(si, 10) || 0;
@@ -363,7 +434,10 @@ function go(view, si) {
   window.scrollTo(0, 0);
 }
 
-window.addEventListener('popstate', () => { readHash(); render(); window.scrollTo(0, 0); });
+window.addEventListener('popstate', () => {
+  readHash(); render(); window.scrollTo(0, 0);
+  if (S.view === 'ete2026') mountEte();
+});
 
 
 function nav() {
@@ -526,6 +600,115 @@ function hiddenSeries() {
   </div>`;
 }
 
+
+// — Section cachée : Été 2026 (survol 3D des traces GPS) —
+const ETE2026 = {
+  title: 'Été 2026',
+  intro: 'Les sorties de l\'été, rejouées en relief. Chaque trace vient de la montre — survolez-la.',
+  tracks: {
+    'grand-veymont': {
+      title: 'Le Grand Veymont',
+      place: 'Chichilianne, Vercors',
+      blurb: 'Départ de La Richardière, le spot de ski de fond sous le Mont Aiguille. Montée jusqu\'au pied de la falaise, bivouac à 1 860 m, puis sommet au lever du jour — 2 341 m, le point haut du Vercors.',
+    },
+    'bastille-grenoble': {
+      title: 'La Bastille',
+      place: 'Grenoble, Isère',
+      blurb: 'Vingt-neuf minutes de montée au fort en fin d\'après-midi, 190 m au-dessus de l\'Isère, la ville qui s\'étale en bas.',
+    },
+    'le-chatelard': {
+      title: 'Le Châtelard',
+      place: 'Massif des Bauges, Savoie',
+      blurb: 'Une boucle depuis le village : 830 m de vallée, 1 656 m au point haut, et le retour par le même versant en fin de journée.',
+    },
+  },
+};
+
+function ete2026() {
+  const tracks = window.ETE2026_TRACKS || [];
+  const blocks = tracks.map((t, i) => {
+    const meta = ETE2026.tracks[t.id] || {};
+    const s = t.stats;
+    const day = new Date(Date.parse(t.date) + (t.tzOffset || 0) * 1000)
+      .toLocaleDateString('fr-FR', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' });
+    const dur = h => h >= 3600 ? `${Math.floor(h / 3600)} h ${String(Math.round((h % 3600) / 60)).padStart(2, '0')}` : `${Math.round(h / 60)} min`;
+    return `<div class="e-block">
+      <div class="e-head">
+        <div>
+          <div class="e-kicker">${[t.sport, meta.place, day].filter(Boolean).join(' · ')}</div>
+          <h2 class="e-h2">${meta.title || t.name}</h2>
+        </div>
+        <p class="e-blurb">${meta.blurb || ''}</p>
+      </div>
+      <div class="fo" id="fo-${t.id}"></div>
+      <div class="e-meta">
+        <div><span>Distance</span><b>${(s.distance / 1000).toFixed(1).replace('.', ',')} km</b></div>
+        <div><span>Dénivelé +</span><b>${s.ascent} m</b></div>
+        <div><span>Point haut</span><b>${s.altMax} m</b></div>
+        <div><span>En mouvement</span><b>${dur(s.moving)}</b></div>
+        ${s.avgHr ? `<div><span>FC moyenne</span><b>${s.avgHr} bpm</b></div>` : ''}
+        <div><span>Points GPS</span><b>${s.points}</b></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="s-wrap">
+    <div class="s-head">
+      <div>
+        <div style="font:400 12px/1 'Space Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:18px;">Carnet · ${tracks.length} sortie${tracks.length > 1 ? 's' : ''}</div>
+        <h1 class="s-h1">${ETE2026.title}</h1>
+      </div>
+      <p style="font-family:'Instrument Serif',serif;font-size:24px;line-height:1.45;color:var(--text2);margin:0;">${ETE2026.intro}</p>
+    </div>
+    ${blocks || '<p style="color:var(--muted);">Aucune trace pour le moment.</p>'}
+  </div>`;
+}
+
+// Charge les données + le moteur de survol uniquement quand la section est ouverte.
+let etePromise = null;
+function loadEte() {
+  if (etePromise) return etePromise;
+  const one = src => new Promise((res, rej) => {
+    const el = document.createElement('script');
+    el.src = src; el.async = true; el.onload = res; el.onerror = () => rej(new Error(src));
+    document.head.appendChild(el);
+  });
+  etePromise = Promise.all([one('data/ete-2026.js'), one('assets/flyover.js')]);
+  return etePromise;
+}
+
+function mountEte() {
+  loadEte().then(() => {
+    render();
+    const start = (el, t) => {
+      if (el.dataset.mounted) return;
+      el.dataset.mounted = '1';
+      window.Flyover.mount(el, t);
+    };
+    // Une carte 3D par sortie : on n'en initialise une que lorsqu'elle approche de l'écran.
+    const io = 'IntersectionObserver' in window
+      ? new IntersectionObserver((entries, obs) => {
+          entries.forEach(e => {
+            if (!e.isIntersecting) return;
+            obs.unobserve(e.target);
+            start(e.target, e.target.__track);
+          });
+        }, { rootMargin: '250px' })
+      : null;
+    (window.ETE2026_TRACKS || []).forEach(t => {
+      const el = document.getElementById('fo-' + t.id);
+      if (!el) return;
+      if (!io) return start(el, t);
+      el.__track = t;
+      io.observe(el);
+    });
+  }).catch(err => {
+    const app = document.getElementById('app');
+    if (app) app.insertAdjacentHTML('beforeend',
+      `<p style="padding:0 56px 60px;color:var(--muted);font-size:14px;">Le survol 3D n'a pas pu se charger (${err.message}).</p>`);
+  });
+}
+
 // — Lightbox —
 const LB = { photos: [], idx: 0, tx: 0 };
 const lbEl  = () => document.getElementById('lb');
@@ -567,13 +750,14 @@ lbEl().addEventListener('touchend', e => {
 });
 
 function render() {
-  const views = { home, work, series, about, hidden: hiddenSeries };
+  const views = { home, work, series, about, hidden: hiddenSeries, ete2026 };
   const content = (views[S.view] || home)();
   document.getElementById('app').innerHTML = nav() + content + footer();
 }
 
 readHash();
 render();
+if (S.view === 'ete2026') mountEte();
 if (S.view === 'series' && S.image !== undefined) {
   openLB(S.image);
   S.image = undefined;
