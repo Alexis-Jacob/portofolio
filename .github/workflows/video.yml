@@ -17,14 +17,14 @@ on:
         default: "0.5"
       seconds:
         description: "Durée de la vidéo, en secondes"
-        default: "20"
+        default: "15"
       fps:
         description: "Images par seconde"
-        default: "25"
+        default: "20"
       width:
-        default: "1280"
+        default: "960"
       height:
-        default: "720"
+        default: "540"
       title:
         description: "Bandeau affiché en bas (vide pour aucun)"
         default: "Le Châtelard · montée du Mont Julioz · 1 672 m"
@@ -38,7 +38,7 @@ permissions:
 jobs:
   video:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 

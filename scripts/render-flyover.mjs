@@ -5,7 +5,8 @@
 //   node scripts/render-flyover.mjs --track=le-chatelard --to=0.5 --out=montee.mp4
 //
 // Options : --from/--to (0 à 1, portion du parcours), --seconds, --fps,
-//           --width/--height, --title, --port, --ffmpeg, --maplibre (copie locale)
+//           --width/--height, --title, --port, --ffmpeg, --maplibre (copie locale),
+//           --format=jpeg|png, --quality, --idle (ms d'attente des tuiles par image)
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
@@ -22,8 +23,14 @@ const from = parseFloat(opt('from', '0'));
 const to = parseFloat(opt('to', '1'));
 const seconds = parseFloat(opt('seconds', '18'));
 const fps = parseInt(opt('fps', '25'), 10);
-const width = parseInt(opt('width', '1280'), 10);
-const height = parseInt(opt('height', '720'), 10);
+const width = parseInt(opt('width', '960'), 10);
+const height = parseInt(opt('height', '540'), 10);
+// Le JPEG s'encode bien plus vite que le PNG sur une image de type photo, et
+// chaque image coûte déjà plusieurs secondes en rendu logiciel.
+const format = opt('format', 'jpeg') === 'png' ? 'png' : 'jpeg';
+const quality = parseInt(opt('quality', '92'), 10);
+// Plafond d'attente du chargement des tuiles avant capture.
+const idleMs = parseInt(opt('idle', '1200'), 10);
 const title = opt('title', '');
 const port = parseInt(opt('port', '8123'), 10);
 const out = opt('out', 'survol.mp4');
@@ -123,16 +130,22 @@ for (let i = 0; i < frames; i++) {
   const p = from + (to - from) * (i / (frames - 1));
   // Les tuiles de la vue courante doivent être arrivées avant la capture, sinon
   // la vidéo clignote : on attend que la carte se déclare au repos.
-  await page.evaluate(({ id, p }) => new Promise(res => {
+  await page.evaluate(({ id, p, idle }) => new Promise(res => {
     const fo = document.getElementById('fo-' + id).__fo;
     fo.update(p, true);
     const m = fo.map;
     if (m.areTilesLoaded() && !m.isMoving()) return res();
     const done = () => { m.off('idle', done); res(); };
     m.on('idle', done);
-    setTimeout(done, 2500);
-  }), { id: track, p });
-  await page.screenshot({ path: join(dir, String(i).padStart(5, '0') + '.png') });
+    setTimeout(done, idle);
+  }), { id: track, p, idle: idleMs });
+  await page.screenshot({
+    path: join(dir, String(i).padStart(5, '0') + (format === 'png' ? '.png' : '.jpg')),
+    type: format,
+    ...(format === 'jpeg' ? { quality } : {}),
+    timeout: 120000,        // une capture en rendu logiciel peut dépasser les 30 s par défaut
+    animations: 'disabled',
+  });
   if (i % 25 === 0 || i === frames - 1) {
     const par = (Date.now() - started) / (i + 1) / 1000;
     console.error(`  ${i + 1}/${frames} — ${par.toFixed(1)} s/image, reste ~${Math.round(par * (frames - i - 1) / 60)} min`);
@@ -142,7 +155,7 @@ for (let i = 0; i < frames; i++) {
 await browser.close();
 server.close();
 
-execFileSync(ffmpeg, ['-y', '-framerate', String(fps), '-i', join(dir, '%05d.png'),
+execFileSync(ffmpeg, ['-y', '-framerate', String(fps), '-i', join(dir, '%05d.' + (format === 'png' ? 'png' : 'jpg')),
   '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20',
   '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', out], { stdio: 'inherit' });
 rmSync(dir, { recursive: true, force: true });
