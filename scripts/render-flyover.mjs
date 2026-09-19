@@ -110,16 +110,18 @@ const monte = await page.evaluate(async ({ id, title }) => {
       background: rgba(20,18,15,.72); color: #f8f7f3; padding: 12px 18px;
       font: 400 13px/1.5 'Space Mono', monospace; letter-spacing: .12em; text-transform: uppercase; }`;
   document.head.appendChild(css);
+  if (!el.__fo) {
+    el.dataset.mounted = '1';
+    el.__fo = await window.Flyover.mount(el, t, { peaks: (window.ETE2026_PEAKS || {})[id] });
+  }
+
+  // Après le montage seulement : celui-ci réécrit le contenu du conteneur et
+  // effaçait le bandeau ajouté trop tôt.
   if (title) {
     const d = document.createElement('div');
     d.className = 'fo-title';
     d.textContent = title;
     el.appendChild(d);
-  }
-
-  if (!el.__fo) {
-    el.dataset.mounted = '1';
-    el.__fo = await window.Flyover.mount(el, t, { peaks: (window.ETE2026_PEAKS || {})[id] });
   }
   return null;
 }, { id: track, title });
