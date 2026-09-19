@@ -87,4 +87,12 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add '${{ inputs.out }}'
           git commit -m "Ajoute la vidéo du survol (${{ inputs.track }})"
-          git push
+          # Deux rendus lancés en parallèle terminent à quelques minutes d'écart :
+          # le second doit se replacer sur la branche avant de pousser.
+          for essai in 1 2 3 4 5; do
+            git pull --rebase --autostash origin main && git push && exit 0
+            echo "push refusé, nouvelle tentative ($essai)…"
+            sleep 10
+          done
+          echo "Le push a échoué ; la vidéo reste disponible en artefact." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
