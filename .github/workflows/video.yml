@@ -52,7 +52,7 @@ jobs:
         run: |
           mkdir -p /tmp/deps && cd /tmp/deps
           npm init -y > /dev/null
-          npm install playwright@^1 --silent
+          npm install playwright@^1 ffmpeg-static --silent   # le runner n'a pas ffmpeg
           ln -sfn /tmp/deps/node_modules "$GITHUB_WORKSPACE/node_modules"
           cd "$GITHUB_WORKSPACE"
           npx --yes playwright install --with-deps chromium

@@ -47,6 +47,15 @@ function findFfmpeg() {
   return 'ffmpeg';
 }
 
+// Vérifier l'encodeur avant de rendre quoi que ce soit : un ffmpeg absent
+// se découvrait sinon après trois quarts d'heure de calcul.
+try {
+  execFileSync(ffmpeg, ['-version'], { stdio: 'ignore' });
+} catch {
+  console.error(`ffmpeg introuvable (« ${ffmpeg} »). Installez-le, ou indiquez-le avec --ffmpeg=/chemin.`);
+  process.exit(1);
+}
+
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png' };
 const server = createServer((req, res) => {
   const p = join(ROOT, normalize(decodeURIComponent(req.url.split('?')[0])).replace(/^(\.\.[/\\])+/, ''));
