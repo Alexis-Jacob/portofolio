@@ -1,0 +1,52 @@
+# Récupère les sommets nommés autour des traces et les commite.
+# À lancer depuis l'onglet Actions de GitHub (bouton « Run workflow »),
+# y compris depuis l'application mobile : aucun terminal nécessaire.
+name: Sommets alentour
+
+on:
+  workflow_dispatch:
+    inputs:
+      radius:
+        description: "Rayon autour de la trace, en kilomètres"
+        default: "12"
+      max:
+        description: "Nombre maximum de sommets par sortie"
+        default: "45"
+
+permissions:
+  contents: write
+
+jobs:
+  sommets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Interroger OpenStreetMap
+        run: node scripts/peaks.mjs --radius=${{ inputs.radius }} --max=${{ inputs.max }}
+
+      - name: Résumé
+        run: |
+          node -e '
+            const p = JSON.parse(require("fs").readFileSync("data/peaks.js","utf8").split("= ")[1].replace(/;\s*$/,""));
+            for (const [id, v] of Object.entries(p)) {
+              const haut = v.filter(s => s[2] !== null).sort((a,b) => b[2]-a[2])[0];
+              console.log(`${id} : ${v.length} sommets` + (haut ? ` — le plus haut : ${haut[3]} (${haut[2]} m)` : ""));
+            }
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commiter le résultat
+        run: |
+          if git diff --quiet -- data/peaks.js; then
+            echo "Aucun changement." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/peaks.js
+          git commit -m "Met à jour les sommets alentour (OpenStreetMap)"
+          git push
