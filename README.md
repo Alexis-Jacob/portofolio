@@ -34,7 +34,12 @@ pour les GPX ; les fichiers FIT portent le leur).
 ### Sommets alentour
 
 Les sommets nommés affichés autour de la trace viennent d'OpenStreetMap et sont
-récupérés une fois pour toutes, à la main :
+récupérés une fois pour toutes. Sans terminal, depuis GitHub (application mobile
+comprise) : onglet **Actions → Sommets alentour → Run workflow**, en ajustant au
+besoin le rayon et le nombre de sommets. Le workflow commite `data/peaks.js`
+tout seul et résume ce qu'il a trouvé.
+
+En local, c'est la même chose :
 
 ```sh
 node scripts/peaks.mjs                       # met à jour data/peaks.js
