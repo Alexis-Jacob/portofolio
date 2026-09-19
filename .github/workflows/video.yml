@@ -1,0 +1,90 @@
+# Exporte un survol en vidéo. À lancer depuis l'onglet Actions (« Run workflow »),
+# application mobile comprise. La vidéo est déposée en artefact et commitée dans
+# videos/, donc consultable directement depuis le site.
+name: Vidéo du survol
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: "Identifiant de la sortie"
+        default: "le-chatelard"
+      from:
+        description: "Début, de 0 à 1 (portion du parcours)"
+        default: "0"
+      to:
+        description: "Fin, de 0 à 1"
+        default: "0.5"
+      seconds:
+        description: "Durée de la vidéo, en secondes"
+        default: "20"
+      fps:
+        description: "Images par seconde"
+        default: "25"
+      width:
+        default: "1280"
+      height:
+        default: "720"
+      title:
+        description: "Bandeau affiché en bas (vide pour aucun)"
+        default: "Le Châtelard · montée du Mont Julioz · 1 672 m"
+      out:
+        description: "Fichier produit"
+        default: "videos/mont-julioz.mp4"
+
+permissions:
+  contents: write
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Le dépôt n'a volontairement aucune dépendance : on installe à côté et on
+      # relie, node_modules/ étant ignoré par git.
+      - name: Installer Playwright
+        run: |
+          mkdir -p /tmp/deps && cd /tmp/deps
+          npm init -y > /dev/null
+          npm install playwright@^1 --silent
+          ln -sfn /tmp/deps/node_modules "$GITHUB_WORKSPACE/node_modules"
+          cd "$GITHUB_WORKSPACE"
+          npx --yes playwright install --with-deps chromium
+
+      - name: Rendre la vidéo
+        run: |
+          mkdir -p "$(dirname '${{ inputs.out }}')"
+          node scripts/render-flyover.mjs \
+            --track='${{ inputs.track }}' \
+            --from='${{ inputs.from }}' --to='${{ inputs.to }}' \
+            --seconds='${{ inputs.seconds }}' --fps='${{ inputs.fps }}' \
+            --width='${{ inputs.width }}' --height='${{ inputs.height }}' \
+            --title='${{ inputs.title }}' \
+            --out='${{ inputs.out }}'
+          ls -lh '${{ inputs.out }}' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: survol
+          path: ${{ inputs.out }}
+          if-no-files-found: warn
+
+      - name: Commiter la vidéo
+        run: |
+          rm -f node_modules
+          if git diff --quiet -- '${{ inputs.out }}' && [ -z "$(git status --porcelain -- '${{ inputs.out }}')" ]; then
+            echo "Aucun changement." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add '${{ inputs.out }}'
+          git commit -m "Ajoute la vidéo du survol (${{ inputs.track }})"
+          git push
