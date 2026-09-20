@@ -154,6 +154,7 @@
           '<button class="fo-btn" data-fo="restart" aria-label="Recommencer">↻</button>' +
           '<button class="fo-btn fo-rate" data-fo="rate">1×</button>' +
           '<button class="fo-btn fo-lock" data-fo="lock" title="Figer l\'orientation de la caméra" aria-pressed="false">Cap</button>' +
+          '<button class="fo-btn fo-pano" data-fo="pano" title="Tour d\'horizon depuis le point haut" aria-pressed="false">Horizon</button>' +
           '<input class="fo-scrub" data-fo="scrub" type="range" min="0" max="1000" value="0" aria-label="Position sur le parcours">' +
           '<button class="fo-btn fo-recenter" data-fo="recenter" hidden>Recadrer</button>' +
         '</div>' +
@@ -224,7 +225,10 @@
           done: { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } } },
           here: { type: 'geojson', data: { type: 'Feature', geometry: { type: 'Point', coordinates: this.pts[0].slice(0, 2) } } },
           pins: { type: 'geojson', data: this.pinData() },
-          peaks: { type: 'geojson', data: this.peakData() },
+          // maxzoom bas volontairement : les sommets lointains partagent alors la tuile
+          // du premier plan, sinon MapLibre ne charge jamais celle du Mont Blanc à 54 km
+          // et l'étiquette n'apparaît pas. Coût : ~10 m d'imprécision de position.
+          peaks: { type: 'geojson', data: this.peakData(), maxzoom: 5 },
         },
         layers: [
           { id: 'fond', type: 'background', paint: { 'background-color': '#cdc6b8' } },
@@ -237,16 +241,18 @@
           { id: 'route-done', type: 'line', source: 'done', layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: { 'line-color': DONE, 'line-width': 5 } },
           { id: 'peaks-dot', type: 'circle', source: 'peaks', minzoom: 10.5,
-            paint: { 'circle-radius': 2.5, 'circle-color': 'rgba(248,247,243,.85)',
+            paint: { 'circle-radius': ['interpolate', ['linear'], ['get', 'km'], 0, 2.5, 20, 2, 45, 1.6],
+                     'circle-color': 'rgba(248,247,243,.85)',
                      'circle-stroke-width': 1, 'circle-stroke-color': 'rgba(27,24,19,.7)' } },
           { id: 'peaks-label', type: 'symbol', source: 'peaks', minzoom: 10.5,
-            layout: { 'text-field': ['get', 'label'], 'text-size': 10.5, 'text-line-height': 1.15,
+            layout: { 'text-field': ['get', 'label'], 'text-line-height': 1.15,
+                      // au loin, l'étiquette s'efface un peu pour laisser le premier plan lisible
+                      'text-size': ['interpolate', ['linear'], ['get', 'km'], 0, 10.5, 20, 9.5, 45, 9],
                       'text-offset': [0, -0.7], 'text-anchor': 'bottom', 'text-padding': 6,
                       'text-allow-overlap': false, 'text-optional': true,
-                      // les plus hauts s'affichent en premier quand ça se bouscule
-                      'symbol-sort-key': ['-', 0, ['get', 'ele']] },
-            paint: { 'text-color': 'rgba(248,247,243,.92)', 'text-halo-color': 'rgba(20,18,15,.85)',
-                     'text-halo-width': 1.3 } },
+                      'symbol-sort-key': ['get', 'rank'] },
+            paint: { 'text-color': ['interpolate', ['linear'], ['get', 'km'], 0, 'rgba(248,247,243,.92)', 45, 'rgba(248,247,243,.75)'],
+                     'text-halo-color': 'rgba(20,18,15,.85)', 'text-halo-width': 1.3 } },
           { id: 'pins-dot', type: 'circle', source: 'pins',
             paint: { 'circle-radius': 5, 'circle-color': '#f8f7f3', 'circle-stroke-width': 2, 'circle-stroke-color': '#1b1813' } },
           { id: 'pins-label', type: 'symbol', source: 'pins',
@@ -310,11 +316,17 @@
       if (!p || p.length < 4) continue;
       if (haversine([p[0], p[1]], summit) < 250) continue;
       var ele = typeof p[2] === 'number' ? p[2] : null;
+      // 5e champ facultatif : distance à la trace, utilisée pour l'échelle des étiquettes
+      var km = typeof p[4] === 'number' ? p[4] / 1000 : 0;
       feats.push({
         type: 'Feature',
         properties: {
           label: p[3] + (ele === null ? '' : '\n' + spaced(ele) + ' m'),
           ele: ele === null ? 0 : ele,
+          km: km,
+          // Les hauts sommets passent devant, mais à altitude comparable
+          // le plus proche gagne : c'est lui qu'on identifie à l'œil.
+          rank: -((ele === null ? 0 : ele) - km * 15),
         },
         geometry: { type: 'Point', coordinates: [p[0], p[1]] },
       });
@@ -513,6 +525,73 @@
     this.camBack = Math.max(120, Math.min(6000, v));
   };
 
+  // — Tour d'horizon —
+  // En survol la caméra pique vers le sol : l'horizon reste au-dessus du cadre et
+  // les sommets lointains ne sont jamais dessinés. Ici on se pose au-dessus du point
+  // haut, presque à l'horizontale, et on fait un tour complet — c'est le seul moment
+  // où le Mont Blanc entre dans l'image.
+  // MapLibre borne la distance de rendu à la hauteur de vol : à 300 m au-dessus
+  // du sommet, plus rien n'est dessiné au-delà d'une vingtaine de kilomètres.
+  // Il faut monter à ~2,5 km au-dessus du point visé pour que le Mont Blanc,
+  // à 54 km, entre dans l'image. D'où le mouvement en deux temps.
+  var PANO_PITCH = 80, PANO_LOW = 700, PANO_HIGH = 2600, PANO_RISE = 0.2;
+
+  Flyover.prototype.topPoint = function () {
+    if (!this._top) {
+      var t = 0;
+      for (var i = 1; i < this.pts.length; i++) if (this.pts[i][2] > this.pts[t][2]) t = i;
+      this._top = this.pts[t];
+    }
+    return this._top;
+  };
+
+  // u ∈ [0,1] : d'abord la prise de hauteur, puis le tour complet.
+  // Pur positionnement, sans animation — le rendu vidéo appelle la même
+  // fonction image par image.
+  Flyover.prototype.panoAt = function (u) {
+    var top = this.topPoint();
+    var rise = Math.min(1, u / PANO_RISE);
+    var turn = u <= PANO_RISE ? 0 : (u - PANO_RISE) / (1 - PANO_RISE);
+    var clear = PANO_LOW + (PANO_HIGH - PANO_LOW) * (rise * rise * (3 - 2 * rise));
+    var view = ((this.panoFrom || 0) + turn * 360) % 360;
+    var look = top[2] * EXAGGERATION;
+    var back = clear * Math.tan(PANO_PITCH * Math.PI / 180);
+    var cam = destination(top[0], top[1], (view + 180) % 360, back);
+    this.map.jumpTo(this.map.calculateCameraOptionsFromTo(
+      { lng: cam[0], lat: cam[1] }, look + clear, { lng: top[0], lat: top[1] }, look));
+  };
+
+  Flyover.prototype.panorama = function (ms) {
+    if (this.panning) return;
+    if (this.playing) this.stop();
+    this.panning = true;
+    this.mapHandlers(false);
+    this.el.classList.add('is-playing');
+    this.q.pano.setAttribute('aria-pressed', 'true');
+    this.panoFrom = this.map.getBearing();
+    var self = this, span = ms || 14000, t0 = performance.now();
+    cancelAnimationFrame(this._raf);
+    (function frame(now) {
+      if (!self.panning) return;
+      var u = (now - t0) / span;
+      if (u >= 1) { self.endPanorama(); return; }
+      self.panoAt(u);
+      self._raf = requestAnimationFrame(frame);
+    })(performance.now());
+  };
+
+  Flyover.prototype.endPanorama = function () {
+    if (!this.panning) return;
+    this.panning = false;
+    cancelAnimationFrame(this._raf);
+    this.mapHandlers(true);
+    this.el.classList.remove('is-playing');
+    this.q.pano.setAttribute('aria-pressed', 'false');
+    this._camAlt = undefined;
+    this.heading = null;
+    this.update(this.progress, true);
+  };
+
   // — Lecture —
   Flyover.prototype.play = function () {
     if (this.progress >= 1) this.progress = 0;
@@ -556,7 +635,13 @@
 
   Flyover.prototype.bindControls = function () {
     var self = this, q = this.q;
-    q.play.addEventListener('click', function () { self.playing ? self.stop() : self.play(); });
+    q.play.addEventListener('click', function () {
+      if (self.panning) return self.endPanorama();
+      self.playing ? self.stop() : self.play();
+    });
+    q.pano.addEventListener('click', function () {
+      self.panning ? self.endPanorama() : self.panorama();
+    });
     q.restart.addEventListener('click', function () { self.stop(); self.progress = 0; self.heading = null; self.update(0, false); self.overview(1200); });
     q.rate.addEventListener('click', function () {
       self.rate = self.rate === 1 ? 2 : self.rate === 2 ? 4 : 1;

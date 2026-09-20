@@ -3,8 +3,14 @@
 // et écrit data/peaks.js. À relancer seulement quand on ajoute une sortie.
 //
 //   node scripts/peaks.mjs                      # toutes les traces de data/ete-2026.js
-//   node scripts/peaks.mjs --radius=12 --max=50
+//   node scripts/peaks.mjs --radius=12 --far=60 --max=80
 //   node scripts/peaks.mjs --endpoint=http://…  # pour les tests
+//
+// Deux cercles : dans le rayon proche (--radius) on garde tout sommet nommé ;
+// au-delà, jusqu'à --far, on ne garde que ce qui se voit vraiment de loin —
+// l'altitude minimale exigée monte avec la distance, de --far-ele au bord du
+// cercle proche à --far-ele-max au bord du lointain. C'est ce qui laisse
+// passer le Mont Blanc à 54 km sans ramener 400 bosses anonymes avec lui.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
@@ -43,17 +49,32 @@ export function bboxOf(pts, marginMetres) {
   return [minLat - dLat, minLon - dLon, maxLat + dLat, maxLon + dLon];   // ordre Overpass
 }
 
-export function query(bbox) {
-  return `[out:json][timeout:90];
+export function query(bbox, minEle) {
+  const box = bbox.map(v => v.toFixed(5)).join(',');
+  // Sur un grand rayon, filtrer côté Overpass évite de rapatrier tout le massif.
+  const floor = minEle ? `(if:number(t["ele"]) >= ${Math.round(minEle)})` : '';
+  return `[out:json][timeout:180];
 (
-  node["natural"="peak"]["name"](${bbox.map(v => v.toFixed(5)).join(',')});
-  node["natural"="volcano"]["name"](${bbox.map(v => v.toFixed(5)).join(',')});
+  node["natural"="peak"]["name"]${floor}(${box});
+  node["natural"="volcano"]["name"]${floor}(${box});
 );
 out body;`;
 }
 
-// Trie par altitude, écarte ce qui est trop loin de la trace, plafonne le nombre.
-export function selectPeaks(elements, pts, radiusMetres, max) {
+// Altitude minimale exigée à une distance donnée : rien dans le cercle proche,
+// puis une rampe linéaire jusqu'au bord du cercle lointain.
+export function minEleAt(dist, near, far, eleNear, eleFar) {
+  if (dist <= near) return 0;
+  if (far <= near) return eleNear;
+  const k = Math.min(1, (dist - near) / (far - near));
+  return eleNear + k * (eleFar - eleNear);
+}
+
+// Garde ce qui est assez près, ou assez haut pour se voir de loin ;
+// trie par altitude et plafonne le nombre.
+export function selectPeaks(elements, pts, opts) {
+  const near = opts.near, far = Math.max(opts.far ?? 0, near);
+  const eleNear = opts.eleNear ?? 1800, eleFar = opts.eleFar ?? 3200;
   const seen = new Set();
   const out = [];
   for (const el of elements || []) {
@@ -68,12 +89,16 @@ export function selectPeaks(elements, pts, radiusMetres, max) {
       if (d < dist) dist = d;
       if (dist < 50) break;
     }
-    if (dist > radiusMetres) continue;
-    out.push({ name: name.trim(), ele: parseEle(el.tags.ele), lon: +el.lon.toFixed(5), lat: +el.lat.toFixed(5), dist: Math.round(dist) });
+    if (dist > far) continue;
+    const ele = parseEle(el.tags.ele);
+    // Au-delà du cercle proche, il faut dépasser la hauteur exigée à cette distance.
+    const floor = minEleAt(dist, near, far, eleNear, eleFar);
+    if (floor > 0 && (ele === null || ele < floor)) continue;
+    out.push({ name: name.trim(), ele, lon: +el.lon.toFixed(5), lat: +el.lat.toFixed(5), dist: Math.round(dist) });
   }
   // Les plus hauts d'abord : ce sont eux qu'on voit depuis la trace.
   out.sort((a, b) => (b.ele ?? -1) - (a.ele ?? -1) || a.dist - b.dist);
-  return out.slice(0, max);
+  return out.slice(0, opts.max);
 }
 
 async function ask(endpoint, body) {
@@ -98,8 +123,11 @@ async function askAnyMirror(endpoints, body) {
 async function main() {
   const args = process.argv.slice(2);
   const opt = (n, d) => { const a = args.find(x => x.startsWith(`--${n}=`)); return a ? a.slice(n.length + 3) : d; };
-  const radius = Math.round(parseFloat(opt('radius', '12')) * 1000);
-  const max = parseInt(opt('max', '45'), 10);
+  const near = Math.round(parseFloat(opt('radius', '12')) * 1000);
+  const far = Math.max(near, Math.round(parseFloat(opt('far', '60')) * 1000));
+  const eleNear = parseFloat(opt('far-ele', '1800'));
+  const eleFar = parseFloat(opt('far-ele-max', '3200'));
+  const max = parseInt(opt('max', '80'), 10);
   const endpoints = opt('endpoint') ? [opt('endpoint')] : MIRRORS;
 
   const dataFile = opt('tracks', 'data/ete-2026.js');
@@ -115,24 +143,46 @@ async function main() {
 
   let failures = 0;
   for (const t of tracks) {
-    const bbox = bboxOf(t.pts, radius);
     process.stderr.write(`${t.id} … `);
+    const elements = [];
+    let ok = false, why = '';
+
+    // 1. le cercle proche : tout sommet nommé
     try {
-      const json = await askAnyMirror(endpoints, query(bbox));
-      const found = selectPeaks(json.elements, t.pts, radius, max);
-      peaks[t.id] = found.map(p => [p.lon, p.lat, p.ele, p.name]);
+      const json = await askAnyMirror(endpoints, query(bboxOf(t.pts, near)));
+      elements.push(...(json.elements || []));
+      ok = true;
+    } catch (err) { why = err.message; }
+
+    // 2. le cercle lointain : seulement les grands, filtrés côté serveur.
+    //    Un échec ici ne coûte que les sommets lointains.
+    if (far > near) {
+      await new Promise(r => setTimeout(r, 1500));
+      try {
+        const json = await askAnyMirror(endpoints, query(bboxOf(t.pts, far), eleNear));
+        elements.push(...(json.elements || []));
+      } catch (err) {
+        console.error(`  cercle lointain indisponible (${err.message}) — on garde le proche`);
+      }
+    }
+
+    if (ok) {
+      const found = selectPeaks(elements, t.pts, { near, far, eleNear, eleFar, max });
+      peaks[t.id] = found.map(p => [p.lon, p.lat, p.ele, p.name, p.dist]);
+      const loin = found.filter(p => p.dist > near);
       console.error(`${found.length} sommets` +
-        (found.length ? ` (le plus haut : ${found[0].name}${found[0].ele ? ' ' + found[0].ele + ' m' : ''})` : ''));
-    } catch (err) {
+        (found.length ? ` (le plus haut : ${found[0].name}${found[0].ele ? ' ' + found[0].ele + ' m' : ''}` +
+          `${loin.length ? `, dont ${loin.length} à plus de ${Math.round(near / 1000)} km` : ''})` : ''));
+    } else {
       failures++;
-      console.error(`échec : ${err.message}${peaks[t.id] ? ' — on garde les ' + peaks[t.id].length + ' sommets déjà connus' : ''}`);
+      console.error(`échec : ${why}${peaks[t.id] ? ' — on garde les ' + peaks[t.id].length + ' sommets déjà connus' : ''}`);
     }
     await new Promise(r => setTimeout(r, 1500));   // Overpass est un service bénévole : on y va doucement
   }
 
   writeFileSync(outFile,
     '// Sommets issus d\'OpenStreetMap, générés par scripts/peaks.mjs — ne pas éditer à la main.\n' +
-    '// [longitude, latitude, altitude (m ou null), nom]\n' +
+    '// [longitude, latitude, altitude (m ou null), nom, distance à la trace (m)]\n' +
     'window.ETE2026_PEAKS = ' + JSON.stringify(peaks) + ';\n');
   console.error(`\n→ ${outFile} écrit${failures ? ` (${failures} trace(s) en échec)` : ''}`);
   if (failures === tracks.length) process.exitCode = 1;

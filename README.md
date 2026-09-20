@@ -12,6 +12,7 @@ distance / altitude / D+ / heure en direct.
 | --- | --- |
 | `tracks/` | traces brutes, `.fit` (montre) ou `.gpx` |
 | `scripts/tracks-to-json.mjs` | décodeur sans dépendance : FIT et GPX → JSON compact |
+| `scripts/merge-gpx.mjs` | recolle plusieurs GPX d'une même sortie (montre arrêtée en route) |
 | `data/ete-2026.js` | données générées (`window.ETE2026_TRACKS`) — ne pas éditer à la main |
 | `scripts/peaks.mjs` | récupère les sommets nommés autour des traces (OpenStreetMap) |
 | `data/peaks.js` | sommets générés — facultatif, le survol marche sans |
@@ -31,6 +32,14 @@ le nom du fichier (ou du GPX) sert de titre.
 Options du script : `--json` (JSON brut sur stdout), `--tz=Europe/Paris` (fuseau retenu
 pour les GPX ; les fichiers FIT portent le leur).
 
+Si la montre a été arrêtée puis relancée, Garmin livre deux fichiers : on les recolle
+d'abord en une seule trace, remise dans l'ordre chronologique. Les interruptions sont
+signalées, et celles de plus de dix minutes ressortent ensuite comme pauses.
+
+```sh
+node scripts/merge-gpx.mjs sortie-1.gpx sortie-2.gpx > tracks/mont-trelod.gpx
+```
+
 ### Sommets alentour
 
 Les sommets nommés affichés autour de la trace viennent d'OpenStreetMap et sont
@@ -46,18 +55,58 @@ node scripts/peaks.mjs                       # met à jour data/peaks.js
 node scripts/peaks.mjs --radius=15 --max=60  # plus large, plus de sommets
 ```
 
-Le script interroge Overpass pour chaque trace, garde les sommets nommés situés
-dans le rayon demandé (12 km par défaut), les trie par altitude et plafonne leur
-nombre (45 par défaut). Une trace dont la requête échoue conserve les sommets
-déjà connus. Overpass étant un service bénévole, le script espace ses requêtes :
-à ne relancer que lorsqu'on ajoute une sortie.
+Le script travaille en deux cercles. Dans le cercle proche (`--radius`, 12 km par
+défaut) il garde tout sommet nommé. Au-delà, jusqu'à `--far` (60 km), il ne retient
+que ce qui se voit vraiment de loin : l'altitude minimale exigée monte avec la
+distance, de `--far-ele` (1 800 m au bord du cercle proche) à `--far-ele-max`
+(3 200 m au bord du lointain). C'est ce qui laisse passer le Mont Blanc, à 54 km du
+Trélod, sans ramener quatre cents bosses anonymes avec lui. Le tout est trié par
+altitude et plafonné (`--max`, 80).
+
+Chaque trace donne donc deux requêtes ; celle du cercle lointain filtre les altitudes
+côté Overpass pour ne pas rapatrier tout le massif. Un échec sur le cercle lointain ne
+coûte que les grands sommets, un échec complet conserve les sommets déjà connus.
+Overpass étant un service bénévole, le script espace ses requêtes : à ne relancer que
+lorsqu'on ajoute une sortie.
 
 Sans `data/peaks.js`, le survol fonctionne exactement pareil, sans les étiquettes.
+
+### Tour d'horizon
+
+Bouton **Horizon** sous chaque carte. En survol la caméra pique vers le sol : la ligne
+d'horizon reste au-dessus du cadre, et un sommet à 50 km n'est jamais dessiné — MapLibre
+borne la distance de rendu à la hauteur de vol. Le tour d'horizon prend donc de la
+hauteur au-dessus du point haut de la trace (2 600 m, tangage 80°) puis fait un tour
+complet. C'est le seul moment où les Alpes lointaines entrent dans l'image.
+
+Même mouvement en vidéo : `--pano=8` ajoute huit secondes de tour d'horizon à la fin
+du rendu (entrée « pano » du workflow).
 
 Ce que le script calcule : distance, dénivelé (valeur barométrique de la montre pour les FIT,
 sinon hystérésis de 3 m sur l'altitude lissée), temps en mouvement, altitudes extrêmes,
 fréquence cardiaque, pauses de plus de 10 min (un bivouac apparaît comme repère sur la carte).
 La trace est simplifiée (Douglas-Peucker, ~2,5 m) pour tenir en quelques dizaines de ko.
+
+### Export vidéo
+
+`scripts/render-flyover.mjs` rejoue un survol image par image dans un Chromium sans
+écran et assemble le tout en H.264. Depuis le téléphone : onglet **Actions → Vidéo du
+survol → Run workflow**. La vidéo est déposée en artefact *et* commitée dans `videos/`.
+
+| Entrée | Rôle |
+| --- | --- |
+| `track` | identifiant de la sortie |
+| `from` / `to` | portion du parcours, de 0 à 1 (`0` → `0.5` = la montée seule) |
+| `seconds`, `fps` | durée et fluidité |
+| `pano` | secondes de tour d'horizon ajoutées à la fin |
+| `width`, `height` | 960×540 par défaut |
+| `title` | bandeau affiché en bas |
+| `out` | chemin du fichier produit |
+
+Compter une cinquantaine de minutes pour 300 images : le rendu tourne en OpenGL
+logiciel sur le runner, et chaque image attend que les tuiles soient arrivées.
+En local le relief ne se charge pas derrière un proxy non approuvé : la vidéo sort
+plate, seul le rendu en CI fait foi.
 
 ### Cartes
 

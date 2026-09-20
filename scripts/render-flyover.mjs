@@ -4,7 +4,8 @@
 //
 //   node scripts/render-flyover.mjs --track=le-chatelard --to=0.5 --out=montee.mp4
 //
-// Options : --from/--to (0 à 1, portion du parcours), --seconds, --fps,
+// Options : --from/--to (0 à 1, portion du parcours), --seconds, --fps, --pano (secondes
+//           de tour d'horizon ajoutées à la fin, 0 pour aucun),
 //           --width/--height, --title, --port, --ffmpeg, --maplibre (copie locale),
 //           --format=jpeg|png, --quality, --idle (ms d'attente des tuiles par image)
 import { chromium } from 'playwright';
@@ -36,6 +37,10 @@ const port = parseInt(opt('port', '8123'), 10);
 const out = opt('out', 'survol.mp4');
 const ffmpeg = opt('ffmpeg', findFfmpeg());
 const frames = Math.max(2, Math.round(seconds * fps));
+// Tour d'horizon ajouté après le survol : c'est le seul moment où les sommets
+// lointains entrent dans le cadre (voir panoAt dans assets/flyover.js).
+const panoSeconds = parseFloat(opt('pano', '0'));
+const panoFrames = panoSeconds > 0 ? Math.max(2, Math.round(panoSeconds * fps)) : 0;
 const dir = opt('frames', join(ROOT, '.frames'));
 
 function findFfmpeg() {
@@ -133,23 +138,34 @@ await page.waitForFunction(id => document.getElementById('fo-' + id).__fo?.map?.
 await page.evaluate(id => document.getElementById('fo-' + id).__fo.map.resize(), track);
 await page.waitForTimeout(4000);
 
+const total = frames + panoFrames;
 console.error(`rendu : ${track} de ${(from * 100).toFixed(0)}% à ${(to * 100).toFixed(0)}%, ` +
-  `${frames} images à ${fps} im/s (${seconds} s), ${width}×${height}`);
+  `${frames} images à ${fps} im/s (${seconds} s)` +
+  (panoFrames ? ` + ${panoFrames} images de tour d'horizon (${panoSeconds} s)` : '') +
+  `, ${width}×${height}`);
 
 const started = Date.now();
-for (let i = 0; i < frames; i++) {
-  const p = from + (to - from) * (i / (frames - 1));
+for (let i = 0; i < total; i++) {
+  const pano = i >= frames;
+  const p = pano
+    ? (i - frames) / Math.max(1, panoFrames - 1)
+    : from + (to - from) * (i / (frames - 1));
   // Les tuiles de la vue courante doivent être arrivées avant la capture, sinon
   // la vidéo clignote : on attend que la carte se déclare au repos.
-  await page.evaluate(({ id, p, idle }) => new Promise(res => {
+  await page.evaluate(({ id, p, idle, pano }) => new Promise(res => {
     const fo = document.getElementById('fo-' + id).__fo;
-    fo.update(p, true);
+    if (pano) {
+      if (p === 0) fo.panoFrom = fo.map.getBearing();
+      fo.panoAt(p);
+    } else {
+      fo.update(p, true);
+    }
     const m = fo.map;
     if (m.areTilesLoaded() && !m.isMoving()) return res();
     const done = () => { m.off('idle', done); res(); };
     m.on('idle', done);
     setTimeout(done, idle);
-  }), { id: track, p, idle: idleMs });
+  }), { id: track, p, idle: idleMs, pano });
   await page.screenshot({
     path: join(dir, String(i).padStart(5, '0') + (format === 'png' ? '.png' : '.jpg')),
     type: format,
@@ -157,9 +173,9 @@ for (let i = 0; i < frames; i++) {
     timeout: 120000,        // une capture en rendu logiciel peut dépasser les 30 s par défaut
     animations: 'disabled',
   });
-  if (i % 25 === 0 || i === frames - 1) {
+  if (i % 25 === 0 || i === total - 1) {
     const par = (Date.now() - started) / (i + 1) / 1000;
-    console.error(`  ${i + 1}/${frames} — ${par.toFixed(1)} s/image, reste ~${Math.round(par * (frames - i - 1) / 60)} min`);
+    console.error(`  ${i + 1}/${total} — ${par.toFixed(1)} s/image, reste ~${Math.round(par * (total - i - 1) / 60)} min`);
   }
 }
 

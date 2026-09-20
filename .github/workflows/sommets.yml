@@ -7,11 +7,20 @@ on:
   workflow_dispatch:
     inputs:
       radius:
-        description: "Rayon autour de la trace, en kilomètres"
+        description: "Cercle proche : on garde tout sommet nommé (km)"
         default: "12"
+      far:
+        description: "Cercle lointain : seulement les grands sommets (km)"
+        default: "60"
+      far_ele:
+        description: "Altitude minimale au bord du cercle proche (m)"
+        default: "1800"
+      far_ele_max:
+        description: "Altitude minimale au bord du cercle lointain (m)"
+        default: "3200"
       max:
         description: "Nombre maximum de sommets par sortie"
-        default: "45"
+        default: "80"
 
 permissions:
   contents: write
@@ -27,7 +36,13 @@ jobs:
           node-version: "22"
 
       - name: Interroger OpenStreetMap
-        run: node scripts/peaks.mjs --radius=${{ inputs.radius }} --max=${{ inputs.max }}
+        run: |
+          node scripts/peaks.mjs \
+            --radius=${{ inputs.radius }} \
+            --far=${{ inputs.far }} \
+            --far-ele=${{ inputs.far_ele }} \
+            --far-ele-max=${{ inputs.far_ele_max }} \
+            --max=${{ inputs.max }}
 
       - name: Résumé
         run: |
@@ -35,7 +50,9 @@ jobs:
             const p = JSON.parse(require("fs").readFileSync("data/peaks.js","utf8").split("= ")[1].replace(/;\s*$/,""));
             for (const [id, v] of Object.entries(p)) {
               const haut = v.filter(s => s[2] !== null).sort((a,b) => b[2]-a[2])[0];
-              console.log(`${id} : ${v.length} sommets` + (haut ? ` — le plus haut : ${haut[3]} (${haut[2]} m)` : ""));
+              const loin = v.filter(s => typeof s[4] === "number" && s[4] > 20000).length;
+              console.log(`${id} : ${v.length} sommets` + (haut ? ` — le plus haut : ${haut[3]} (${haut[2]} m)` : "") +
+                (loin ? `, dont ${loin} à plus de 20 km` : ""));
             }
           ' >> "$GITHUB_STEP_SUMMARY"
 

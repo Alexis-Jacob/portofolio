@@ -21,6 +21,9 @@ on:
       fps:
         description: "Images par seconde"
         default: "20"
+      pano:
+        description: "Tour d'horizon ajouté à la fin, en secondes (0 pour aucun)"
+        default: "0"
       width:
         default: "960"
       height:
@@ -64,6 +67,7 @@ jobs:
             --track='${{ inputs.track }}' \
             --from='${{ inputs.from }}' --to='${{ inputs.to }}' \
             --seconds='${{ inputs.seconds }}' --fps='${{ inputs.fps }}' \
+            --pano='${{ inputs.pano }}' \
             --width='${{ inputs.width }}' --height='${{ inputs.height }}' \
             --title='${{ inputs.title }}' \
             --out='${{ inputs.out }}'
