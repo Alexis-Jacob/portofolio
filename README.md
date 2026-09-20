@@ -60,8 +60,14 @@ défaut) il garde tout sommet nommé. Au-delà, jusqu'à `--far` (60 km), il ne 
 que ce qui se voit vraiment de loin : l'altitude minimale exigée monte avec la
 distance, de `--far-ele` (1 800 m au bord du cercle proche) à `--far-ele-max`
 (3 200 m au bord du lointain). C'est ce qui laisse passer le Mont Blanc, à 54 km du
-Trélod, sans ramener quatre cents bosses anonymes avec lui. Le tout est trié par
-altitude et plafonné (`--max`, 80).
+Trélod, sans ramener quatre cents bosses anonymes avec lui.
+
+Chaque cercle a son propre quota — `--max` (80) pour le proche, `--far-max` (24) pour
+le lointain. Sans cette séparation, les quatre-mille raflent toutes les places et le
+sommet du jour n'est même plus étiqueté. Et au loin on ne garde qu'un nom tous les
+`--far-gap` kilomètres (4 par défaut) : sinon le Mont Blanc arrive avec ses quinze
+épaules nommées. Les noms bilingues d'OSM sont raccourcis (« Mont Blanc / Monte
+Bianco » → « Mont Blanc »).
 
 Chaque trace donne donc deux requêtes ; celle du cercle lointain filtre les altitudes
 côté Overpass pour ne pas rapatrier tout le massif. Un échec sur le cercle lointain ne

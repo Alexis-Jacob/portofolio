@@ -3,7 +3,7 @@
 // et écrit data/peaks.js. À relancer seulement quand on ajoute une sortie.
 //
 //   node scripts/peaks.mjs                      # toutes les traces de data/ete-2026.js
-//   node scripts/peaks.mjs --radius=12 --far=60 --max=80
+//   node scripts/peaks.mjs --radius=12 --far=60 --max=80 --far-max=24
 //   node scripts/peaks.mjs --endpoint=http://…  # pour les tests
 //
 // Deux cercles : dans le rayon proche (--radius) on garde tout sommet nommé ;
@@ -11,6 +11,10 @@
 // l'altitude minimale exigée monte avec la distance, de --far-ele au bord du
 // cercle proche à --far-ele-max au bord du lointain. C'est ce qui laisse
 // passer le Mont Blanc à 54 km sans ramener 400 bosses anonymes avec lui.
+// Les deux cercles ont leur propre quota : sinon les quatre-mille raflent toutes
+// les places et le sommet du jour n'est plus étiqueté. Au loin on ne garde qu'un
+// nom tous les --far-gap kilomètres, sans quoi le Mont Blanc arrive avec ses
+// quinze épaules nommées.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
@@ -70,17 +74,24 @@ export function minEleAt(dist, near, far, eleNear, eleFar) {
   return eleNear + k * (eleFar - eleNear);
 }
 
-// Garde ce qui est assez près, ou assez haut pour se voir de loin ;
-// trie par altitude et plafonne le nombre.
+// Nom d'affichage : OSM donne souvent « Mont Blanc / Monte Bianco ».
+export function shortName(name) {
+  const cut = name.split(/\s+\/\s+/)[0].trim();
+  return cut.length >= 3 ? cut : name.trim();
+}
+
+// Garde ce qui est assez près, ou assez haut pour se voir de loin.
+// Chaque cercle a son quota ; au loin, un seul nom par voisinage.
 export function selectPeaks(elements, pts, opts) {
   const near = opts.near, far = Math.max(opts.far ?? 0, near);
   const eleNear = opts.eleNear ?? 1800, eleFar = opts.eleFar ?? 3200;
+  const farMax = opts.farMax ?? 24, gap = opts.farGap ?? 4000;
   const seen = new Set();
-  const out = [];
+  const dedans = [], dehors = [];
   for (const el of elements || []) {
-    const name = el.tags && (el.tags.name || el.tags['name:fr']);
-    if (!name || typeof el.lat !== 'number' || typeof el.lon !== 'number') continue;
-    const key = name + '@' + el.lat.toFixed(3) + ',' + el.lon.toFixed(3);
+    const raw = el.tags && (el.tags.name || el.tags['name:fr']);
+    if (!raw || typeof el.lat !== 'number' || typeof el.lon !== 'number') continue;
+    const key = raw + '@' + el.lat.toFixed(3) + ',' + el.lon.toFixed(3);
     if (seen.has(key)) continue;
     seen.add(key);
     let dist = Infinity;
@@ -94,11 +105,21 @@ export function selectPeaks(elements, pts, opts) {
     // Au-delà du cercle proche, il faut dépasser la hauteur exigée à cette distance.
     const floor = minEleAt(dist, near, far, eleNear, eleFar);
     if (floor > 0 && (ele === null || ele < floor)) continue;
-    out.push({ name: name.trim(), ele, lon: +el.lon.toFixed(5), lat: +el.lat.toFixed(5), dist: Math.round(dist) });
+    const peak = { name: shortName(raw), ele, lon: +el.lon.toFixed(5), lat: +el.lat.toFixed(5), dist: Math.round(dist) };
+    (dist <= near ? dedans : dehors).push(peak);
   }
-  // Les plus hauts d'abord : ce sont eux qu'on voit depuis la trace.
-  out.sort((a, b) => (b.ele ?? -1) - (a.ele ?? -1) || a.dist - b.dist);
-  return out.slice(0, opts.max);
+  const parAltitude = (a, b) => (b.ele ?? -1) - (a.ele ?? -1) || a.dist - b.dist;
+  dedans.sort(parAltitude);
+  dehors.sort(parAltitude);
+
+  // Un seul sommet par voisinage au loin : le plus haut prend la place.
+  const loin = [];
+  for (const p of dehors) {
+    if (loin.length >= farMax) break;
+    if (loin.some(q => haversine([p.lon, p.lat], [q.lon, q.lat]) < gap)) continue;
+    loin.push(p);
+  }
+  return dedans.slice(0, opts.max).concat(loin).sort(parAltitude);
 }
 
 async function ask(endpoint, body) {
@@ -128,6 +149,8 @@ async function main() {
   const eleNear = parseFloat(opt('far-ele', '1800'));
   const eleFar = parseFloat(opt('far-ele-max', '3200'));
   const max = parseInt(opt('max', '80'), 10);
+  const farMax = parseInt(opt('far-max', '24'), 10);
+  const farGap = Math.round(parseFloat(opt('far-gap', '4')) * 1000);
   const endpoints = opt('endpoint') ? [opt('endpoint')] : MIRRORS;
 
   const dataFile = opt('tracks', 'data/ete-2026.js');
@@ -167,7 +190,7 @@ async function main() {
     }
 
     if (ok) {
-      const found = selectPeaks(elements, t.pts, { near, far, eleNear, eleFar, max });
+      const found = selectPeaks(elements, t.pts, { near, far, eleNear, eleFar, max, farMax, farGap });
       peaks[t.id] = found.map(p => [p.lon, p.lat, p.ele, p.name, p.dist]);
       const loin = found.filter(p => p.dist > near);
       console.error(`${found.length} sommets` +
