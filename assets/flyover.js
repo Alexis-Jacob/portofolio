@@ -246,13 +246,16 @@
                      'circle-stroke-width': 1, 'circle-stroke-color': 'rgba(27,24,19,.7)' } },
           { id: 'peaks-label', type: 'symbol', source: 'peaks', minzoom: 10.5,
             layout: { 'text-field': ['get', 'label'], 'text-line-height': 1.15,
-                      // au loin, l'étiquette s'efface un peu pour laisser le premier plan lisible
-                      'text-size': ['interpolate', ['linear'], ['get', 'km'], 0, 10.5, 20, 9.5, 45, 9],
+                      // Les lointains sont légèrement plus gros, pas plus petits : sur la ligne
+                      // d'horizon, délavée par la brume, une étiquette réduite devient illisible.
+                      'text-size': ['interpolate', ['linear'], ['get', 'km'], 0, 10.5, 20, 11, 45, 12],
                       'text-offset': [0, -0.7], 'text-anchor': 'bottom', 'text-padding': 6,
                       'text-allow-overlap': false, 'text-optional': true,
                       'symbol-sort-key': ['get', 'rank'] },
-            paint: { 'text-color': ['interpolate', ['linear'], ['get', 'km'], 0, 'rgba(248,247,243,.92)', 45, 'rgba(248,247,243,.75)'],
-                     'text-halo-color': 'rgba(20,18,15,.85)', 'text-halo-width': 1.3 } },
+            paint: { 'text-color': 'rgba(248,247,243,.95)',
+                     'text-halo-color': 'rgba(20,18,15,.9)',
+                     // halo renforcé au loin : le fond y est clair et sans contraste
+                     'text-halo-width': ['interpolate', ['linear'], ['get', 'km'], 0, 1.3, 45, 2] } },
           { id: 'pins-dot', type: 'circle', source: 'pins',
             paint: { 'circle-radius': 5, 'circle-color': '#f8f7f3', 'circle-stroke-width': 2, 'circle-stroke-color': '#1b1813' } },
           { id: 'pins-label', type: 'symbol', source: 'pins',
