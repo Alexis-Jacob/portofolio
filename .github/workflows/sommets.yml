@@ -66,4 +66,12 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/peaks.js
           git commit -m "Met à jour les sommets alentour (OpenStreetMap)"
-          git push
+          # La branche peut avoir avancé pendant les dix minutes d'interrogation
+          # d'Overpass : on se replace avant de pousser plutôt que de tout perdre.
+          for essai in 1 2 3 4 5; do
+            git pull --rebase --autostash origin main && git push && exit 0
+            echo "push refusé, nouvelle tentative ($essai)…"
+            sleep 10
+          done
+          echo "Le push a échoué ; relancer le workflow." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
