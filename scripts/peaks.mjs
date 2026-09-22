@@ -129,7 +129,14 @@ async function ask(endpoint, body) {
     body: 'data=' + encodeURIComponent(body),
   });
   if (!res.ok) throw new Error(`${endpoint} → HTTP ${res.status}`);
-  return res.json();
+  const json = await res.json();
+  // Overpass répond 200 même quand il a renoncé : la panne est dans « remark ».
+  // Sans ce contrôle, un dépassement de délai passe pour une zone sans sommets
+  // et efface silencieusement ceux qu'on avait déjà.
+  if (json && typeof json.remark === 'string' && /error|timed out|timeout/i.test(json.remark)) {
+    throw new Error(`${endpoint} → ${json.remark.trim().slice(0, 120)}`);
+  }
+  return json;
 }
 
 async function askAnyMirror(endpoints, body) {
@@ -191,6 +198,15 @@ async function main() {
 
     if (ok) {
       const found = selectPeaks(elements, t.pts, { near, far, eleNear, eleFar, max, farMax, farGap });
+      const avant = (peaks[t.id] || []).length;
+      // Dernier garde-fou : une récolte qui s'effondre sans erreur déclarée est
+      // suspecte (réponse tronquée, miroir capricieux). On garde l'ancienne.
+      if (avant >= 10 && found.length < avant / 2) {
+        failures++;
+        console.error(`récolte suspecte (${found.length} sommets contre ${avant}) — on garde les précédents`);
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
       peaks[t.id] = found.map(p => [p.lon, p.lat, p.ele, p.name, p.dist]);
       const loin = found.filter(p => p.dist > near);
       console.error(`${found.length} sommets` +
