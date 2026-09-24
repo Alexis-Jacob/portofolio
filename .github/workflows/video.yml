@@ -63,19 +63,34 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           npx --yes playwright install --with-deps chromium
 
+      # Les entrées passent par l'environnement, jamais dans le texte de la
+      # commande : un titre contenant une apostrophe — « au-dessus d'Annecy » —
+      # fermait la chaîne et cassait le script avant le premier calcul.
       - name: Rendre la vidéo
+        env:
+          FO_TRACK: ${{ inputs.track }}
+          FO_FROM: ${{ inputs.from }}
+          FO_TO: ${{ inputs.to }}
+          FO_SECONDS: ${{ inputs.seconds }}
+          FO_FPS: ${{ inputs.fps }}
+          FO_PANO: ${{ inputs.pano }}
+          FO_TOUR: ${{ inputs.tour }}
+          FO_WIDTH: ${{ inputs.width }}
+          FO_HEIGHT: ${{ inputs.height }}
+          FO_TITLE: ${{ inputs.title }}
+          FO_OUT: ${{ inputs.out }}
         run: |
-          mkdir -p "$(dirname '${{ inputs.out }}')"
+          mkdir -p "$(dirname "$FO_OUT")"
           node scripts/render-flyover.mjs \
-            --track='${{ inputs.track }}' \
-            --from='${{ inputs.from }}' --to='${{ inputs.to }}' \
-            --seconds='${{ inputs.seconds }}' --fps='${{ inputs.fps }}' \
-            --pano='${{ inputs.pano }}' \
-            --tour='${{ inputs.tour }}' \
-            --width='${{ inputs.width }}' --height='${{ inputs.height }}' \
-            --title='${{ inputs.title }}' \
-            --out='${{ inputs.out }}'
-          ls -lh '${{ inputs.out }}' >> "$GITHUB_STEP_SUMMARY"
+            --track="$FO_TRACK" \
+            --from="$FO_FROM" --to="$FO_TO" \
+            --seconds="$FO_SECONDS" --fps="$FO_FPS" \
+            --pano="$FO_PANO" \
+            --tour="$FO_TOUR" \
+            --width="$FO_WIDTH" --height="$FO_HEIGHT" \
+            --title="$FO_TITLE" \
+            --out="$FO_OUT"
+          ls -lh "$FO_OUT" >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -85,16 +100,19 @@ jobs:
           if-no-files-found: warn
 
       - name: Commiter la vidéo
+        env:
+          FO_OUT: ${{ inputs.out }}
+          FO_TRACK: ${{ inputs.track }}
         run: |
           rm -f node_modules
-          if git diff --quiet -- '${{ inputs.out }}' && [ -z "$(git status --porcelain -- '${{ inputs.out }}')" ]; then
+          if git diff --quiet -- "$FO_OUT" && [ -z "$(git status --porcelain -- "$FO_OUT")" ]; then
             echo "Aucun changement." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add '${{ inputs.out }}'
-          git commit -m "Ajoute la vidéo du survol (${{ inputs.track }})"
+          git add "$FO_OUT"
+          git commit -m "Ajoute la vidéo du survol ($FO_TRACK)"
           # Deux rendus lancés en parallèle terminent à quelques minutes d'écart :
           # le second doit se replacer sur la branche avant de pousser.
           for essai in 1 2 3 4 5; do

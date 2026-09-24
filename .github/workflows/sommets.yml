@@ -35,14 +35,22 @@ jobs:
         with:
           node-version: "22"
 
+      # Comme pour la vidéo : les entrées passent par l'environnement, pas par
+      # le texte de la commande.
       - name: Interroger OpenStreetMap
+        env:
+          P_RADIUS: ${{ inputs.radius }}
+          P_FAR: ${{ inputs.far }}
+          P_FAR_ELE: ${{ inputs.far_ele }}
+          P_FAR_ELE_MAX: ${{ inputs.far_ele_max }}
+          P_MAX: ${{ inputs.max }}
         run: |
           node scripts/peaks.mjs \
-            --radius=${{ inputs.radius }} \
-            --far=${{ inputs.far }} \
-            --far-ele=${{ inputs.far_ele }} \
-            --far-ele-max=${{ inputs.far_ele_max }} \
-            --max=${{ inputs.max }}
+            --radius="$P_RADIUS" \
+            --far="$P_FAR" \
+            --far-ele="$P_FAR_ELE" \
+            --far-ele-max="$P_FAR_ELE_MAX" \
+            --max="$P_MAX"
 
       - name: Résumé
         run: |
