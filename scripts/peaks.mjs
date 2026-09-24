@@ -139,11 +139,16 @@ async function ask(endpoint, body) {
   return json;
 }
 
-async function askAnyMirror(endpoints, body) {
+// `valide` permet de refuser une réponse formellement correcte mais vide :
+// on passe alors au miroir suivant au lieu de la prendre pour argent comptant.
+async function askAnyMirror(endpoints, body, valide) {
   let last;
   for (const e of endpoints) {
-    try { return await ask(e, body); }
-    catch (err) { last = err; console.error(`  ${err.message}, on essaie le miroir suivant…`); }
+    try {
+      const json = await ask(e, body);
+      if (valide && !valide(json)) throw new Error(`${e} → réponse vide`);
+      return json;
+    } catch (err) { last = err; console.error(`  ${err.message}, on essaie le miroir suivant…`); }
   }
   throw last;
 }
@@ -177,9 +182,12 @@ async function main() {
     const elements = [];
     let ok = false, why = '';
 
-    // 1. le cercle proche : tout sommet nommé
+    // 1. le cercle proche : tout sommet nommé.
+    //    Douze kilomètres autour d'une trace de montagne sans un seul sommet
+    //    nommé, ça n'existe pas : une réponse vide est une panne, pas un désert.
     try {
-      const json = await askAnyMirror(endpoints, query(bboxOf(t.pts, near)));
+      const json = await askAnyMirror(endpoints, query(bboxOf(t.pts, near)),
+        r => (r.elements || []).length > 0);
       elements.push(...(json.elements || []));
       ok = true;
     } catch (err) { why = err.message; }
