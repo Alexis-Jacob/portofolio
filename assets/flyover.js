@@ -595,6 +595,128 @@
     this.update(this.progress, true);
   };
 
+  // — Survol d'ensemble : l'avion qui relie plusieurs sorties —
+  // On réutilise la carte déjà montée (relief, imagerie, sommets) : les autres
+  // traces viennent s'y poser en calques, et la caméra suit une ligne de vol
+  // passant par leurs points hauts. Altitude de croisière élevée, sans quoi
+  // MapLibre ne dessine rien au-delà d'une vingtaine de kilomètres.
+  var TOUR_PITCH = 76, TOUR_CRUISE = 2300, TOUR_LEAD = 2600;
+
+  function highPoint(pts) {
+    var t = 0;
+    for (var i = 1; i < pts.length; i++) if (pts[i][2] > pts[t][2]) t = i;
+    return pts[t];
+  }
+
+  // Arrondit les angles d'une polyligne (Chaikin) : un avion ne pivote pas sur
+  // place, et entre le Trélod et le Châtelard la ligne brisée tournait de 111°
+  // d'un coup. Deux passes suffisent à en faire une courbe.
+  function arrondir(points, passes) {
+    var out = points;
+    for (var n = 0; n < (passes || 2); n++) {
+      var next = [out[0]];
+      for (var i = 0; i < out.length - 1; i++) {
+        var a = out[i], b = out[i + 1];
+        next.push([a[0] + (b[0] - a[0]) * 0.25, a[1] + (b[1] - a[1]) * 0.25]);
+        next.push([a[0] + (b[0] - a[0]) * 0.75, a[1] + (b[1] - a[1]) * 0.75]);
+      }
+      next.push(out[out.length - 1]);
+      out = next;
+    }
+    return out;
+  }
+
+  // Longueurs cumulées d'une polyligne, pour avancer à vitesse constante.
+  function chainage(points) {
+    var cum = [0];
+    for (var i = 1; i < points.length; i++) cum.push(cum[i - 1] + haversine(points[i - 1], points[i]));
+    return cum;
+  }
+
+  Flyover.prototype.tour = function (tracks, opts) {
+    opts = opts || {};
+    var map = this.map, self = this;
+    var etapes = tracks.map(function (t) {
+      var h = highPoint(t.pts);
+      return { id: t.id, titre: t.titre || t.id, lon: h[0], lat: h[1], alt: h[2] };
+    });
+    // Du sud au nord par défaut : c'est le sens naturel Bauges → Annecy.
+    if (opts.order !== 'donne') etapes.sort(function (a, b) { return a.lat - b.lat; });
+
+    // Les traces survolées, dessinées d'un trait clair sous la ligne de vol.
+    tracks.forEach(function (t, i) {
+      var id = 'tour-' + i;
+      if (map.getSource(id)) return;
+      map.addSource(id, {
+        type: 'geojson', maxzoom: 5,
+        data: { type: 'Feature', geometry: { type: 'LineString',
+          coordinates: t.pts.map(function (p) { return [p[0], p[1]]; }) } },
+      });
+      map.addLayer({ id: id + '-halo', type: 'line', source: id,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#1b1813', 'line-width': 6, 'line-opacity': 0.35, 'line-blur': 3 } }, 'peaks-dot');
+      map.addLayer({ id: id + '-trait', type: 'line', source: id,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': DONE, 'line-width': 3.5 } }, 'peaks-dot');
+    });
+
+    // Ligne de vol : les points hauts, prolongée un peu avant et après pour
+    // que la première et la dernière sortie soient abordées de loin.
+    var pts = etapes.map(function (e) { return [e.lon, e.lat]; });
+    var cap0 = bearing(pts[0], pts[1] || pts[0]);
+    var capN = bearing(pts[pts.length - 2] || pts[0], pts[pts.length - 1]);
+    var vol = arrondir([destination(pts[0][0], pts[0][1], (cap0 + 180) % 360, 9000)]
+      .concat(pts, [destination(pts[pts.length - 1][0], pts[pts.length - 1][1], capN, 7000)]), 3);
+    var cum = chainage(vol), total = cum[cum.length - 1];
+
+    function pointA(d) {
+      d = Math.max(0, Math.min(total, d));
+      var i = 1;
+      while (i < cum.length - 1 && cum[i] < d) i++;
+      var t = (d - cum[i - 1]) / Math.max(1, cum[i] - cum[i - 1]);
+      return [vol[i - 1][0] + (vol[i][0] - vol[i - 1][0]) * t,
+              vol[i - 1][1] + (vol[i][1] - vol[i - 1][1]) * t];
+    }
+
+    // Cap pris sur un point nettement en avant, et non sur le segment courant :
+    // le virage s'amorce et se termine en douceur.
+    function surLigne(d) {
+      var p = pointA(d), q = pointA(Math.min(total, d + 1800));
+      return { lon: p[0], lat: p[1], cap: bearing(p, q) };
+    }
+
+    return {
+      etapes: etapes,
+      longueur: total,
+      // u ∈ [0,1] : position sur la ligne de vol. Pur positionnement, comme panoAt.
+      at: function (u) {
+        // L'avion parcourt la ligne moins l'avance du regard : sans ça, le point
+        // visé bute sur la fin et la caméra se fige sur les dernières secondes.
+        var d = u * (total - TOUR_LEAD);
+        var vise = surLigne(d + TOUR_LEAD);
+        var sol = surLigne(d);
+        var haut = self.ground(vise.lon, vise.lat, 1500 * EXAGGERATION);
+        var alt = haut + TOUR_CRUISE;
+        var back = TOUR_CRUISE * Math.tan(TOUR_PITCH * Math.PI / 180);
+        var cam = destination(vise.lon, vise.lat, (vise.cap + 180) % 360, back);
+        map.jumpTo(map.calculateCameraOptionsFromTo(
+          { lng: cam[0], lat: cam[1] }, alt, { lng: vise.lon, lat: vise.lat }, haut));
+        return sol;
+      },
+      // Étape la plus proche à cet instant : de quoi titrer l'image.
+      // On nomme ce que la caméra regarde, pas ce que l'avion survole :
+      // au sommet du passage, le point haut est déjà dans le cadre.
+      etapeAt: function (u) {
+        var p = surLigne(u * (total - TOUR_LEAD) + TOUR_LEAD), best = etapes[0], bd = Infinity;
+        etapes.forEach(function (e) {
+          var dd = haversine([p.lon, p.lat], [e.lon, e.lat]);
+          if (dd < bd) { bd = dd; best = e; }
+        });
+        return { etape: best, distance: bd };
+      },
+    };
+  };
+
   // — Lecture —
   Flyover.prototype.play = function () {
     if (this.progress >= 1) this.progress = 0;

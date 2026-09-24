@@ -24,6 +24,9 @@ on:
       pano:
         description: "Tour d'horizon ajouté à la fin, en secondes (0 pour aucun)"
         default: "0"
+      tour:
+        description: "Survol d'ensemble : identifiants séparés par des virgules (vide pour une seule sortie)"
+        default: ""
       width:
         default: "960"
       height:
@@ -41,7 +44,7 @@ permissions:
 jobs:
   video:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
 
@@ -68,6 +71,7 @@ jobs:
             --from='${{ inputs.from }}' --to='${{ inputs.to }}' \
             --seconds='${{ inputs.seconds }}' --fps='${{ inputs.fps }}' \
             --pano='${{ inputs.pano }}' \
+            --tour='${{ inputs.tour }}' \
             --width='${{ inputs.width }}' --height='${{ inputs.height }}' \
             --title='${{ inputs.title }}' \
             --out='${{ inputs.out }}'

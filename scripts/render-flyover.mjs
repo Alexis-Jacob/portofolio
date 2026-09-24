@@ -6,6 +6,8 @@
 //
 // Options : --from/--to (0 à 1, portion du parcours), --seconds, --fps, --pano (secondes
 //           de tour d'horizon ajoutées à la fin, 0 pour aucun),
+//           --tour=id1,id2,… (survol d'ensemble reliant plusieurs sorties : la caméra
+//           suit une ligne de vol passant par leurs points hauts, du sud au nord),
 //           --width/--height, --title, --port, --ffmpeg, --maplibre (copie locale),
 //           --format=jpeg|png, --quality, --idle (ms d'attente des tuiles par image)
 import { chromium } from 'playwright';
@@ -19,7 +21,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const opt = (n, d) => { const a = args.find(x => x.startsWith(`--${n}=`)); return a === undefined ? d : a.slice(n.length + 3); };
 
-const track = opt('track', 'le-chatelard');
+// Survol d'ensemble : la liste des sorties reliées, dans l'ordre sud → nord.
+const tourIds = (opt('tour', '') || '').split(',').map(x => x.trim()).filter(Boolean);
+const track = opt('track', tourIds[0] || 'le-chatelard');
 const from = parseFloat(opt('from', '0'));
 const to = parseFloat(opt('to', '1'));
 const seconds = parseFloat(opt('seconds', '18'));
@@ -102,6 +106,17 @@ const monte = await page.evaluate(async ({ id, title }) => {
   const t = (window.ETE2026_TRACKS || []).find(x => x.id === id);
   if (!t) return 'trace inconnue : ' + id;
 
+  // Les titres éditoriaux vivent dans le DOM de la section : on les relève
+  // avant de sortir la carte de son bloc, sinon le lien est perdu.
+  window.__titres = {};
+  for (const bloc of document.querySelectorAll('.e-block')) {
+    const carte = bloc.querySelector('.fo');
+    if (!carte) continue;
+    const nom = bloc.querySelector('.e-h2')?.textContent?.trim();
+    const lieu = bloc.querySelector('.e-kicker')?.textContent?.split('·')[1]?.trim();
+    window.__titres[carte.id.replace(/^fo-/, '')] = [nom, lieu].filter(Boolean).join(' · ');
+  }
+
   document.body.appendChild(el);
   Object.assign(el.style, { position: 'fixed', inset: '0', width: '100%', height: '100%',
     maxHeight: 'none', aspectRatio: 'auto', border: 'none', zIndex: '9999' });
@@ -111,7 +126,7 @@ const monte = await page.evaluate(async ({ id, title }) => {
     body { margin: 0; overflow: hidden; background: #14120f; }
     .fo-controls, .fo-basemaps, .maplibregl-control-container { display: none !important; }
     .fo-bottom { padding-bottom: 22px; }
-    .fo-title { position: absolute; left: 0; bottom: 96px; z-index: 5;
+    .fo-title { position: absolute; left: 0; bottom: 96px; z-index: 5; transition: opacity .4s;
       background: rgba(20,18,15,.72); color: #f8f7f3; padding: 12px 18px;
       font: 400 13px/1.5 'Space Mono', monospace; letter-spacing: .12em; text-transform: uppercase; }`;
   document.head.appendChild(css);
@@ -138,6 +153,28 @@ await page.waitForFunction(id => document.getElementById('fo-' + id).__fo?.map?.
 await page.evaluate(id => document.getElementById('fo-' + id).__fo.map.resize(), track);
 await page.waitForTimeout(4000);
 
+// Survol d'ensemble : on pose les autres traces sur la même carte et on masque
+// tout ce qui n'a de sens que pour une sortie unique (HUD, profil, repères).
+if (tourIds.length) {
+  const prep = await page.evaluate(({ id, ids }) => {
+    const fo = document.getElementById('fo-' + id).__fo;
+    const tracks = ids.map(x => (window.ETE2026_TRACKS || []).find(t => t.id === x)).filter(Boolean);
+    if (tracks.length !== ids.length) return 'trace(s) inconnue(s) dans --tour';
+    for (const t of tracks) t.titre = (window.__titres || {})[t.id] || t.name;
+    for (const couche of ['route-todo', 'route-halo', 'route-done', 'here-dot', 'here-glow', 'pins-dot', 'pins-label']) {
+      if (fo.map.getLayer(couche)) fo.map.setLayoutProperty(couche, 'visibility', 'none');
+    }
+    const css = document.createElement('style');
+    css.textContent = '.fo-hud, .fo-bottom { display: none !important; }';
+    document.head.appendChild(css);
+    window.__tour = fo.tour(tracks);
+    return null;
+  }, { id: track, ids: tourIds });
+  if (prep) { console.error(prep); process.exit(1); }
+  console.error('survol d\'ensemble : ' + tourIds.join(' → ') + ', ligne de vol de ' +
+    (await page.evaluate(() => Math.round(window.__tour.longueur / 100) / 10)) + ' km');
+}
+
 const total = frames + panoFrames;
 console.error(`rendu : ${track} de ${(from * 100).toFixed(0)}% à ${(to * 100).toFixed(0)}%, ` +
   `${frames} images à ${fps} im/s (${seconds} s)` +
@@ -154,7 +191,16 @@ for (let i = 0; i < total; i++) {
   // la vidéo clignote : on attend que la carte se déclare au repos.
   await page.evaluate(({ id, p, idle, pano }) => new Promise(res => {
     const fo = document.getElementById('fo-' + id).__fo;
-    if (pano) {
+    if (window.__tour && !pano) {
+      window.__tour.at(p);
+      // Le bandeau nomme la sortie survolée, et s'efface entre deux.
+      const bandeau = document.querySelector('.fo-title');
+      if (bandeau) {
+        const { etape, distance } = window.__tour.etapeAt(p);
+        bandeau.textContent = distance < 6000 ? etape.titre : '';
+        bandeau.style.opacity = distance < 6000 ? '1' : '0';
+      }
+    } else if (pano) {
       if (p === 0) fo.panoFrom = fo.map.getBearing();
       fo.panoAt(p);
     } else {

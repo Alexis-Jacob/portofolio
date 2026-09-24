@@ -105,9 +105,22 @@ survol → Run workflow**. La vidéo est déposée en artefact *et* commitée da
 | `from` / `to` | portion du parcours, de 0 à 1 (`0` → `0.5` = la montée seule) |
 | `seconds`, `fps` | durée et fluidité |
 | `pano` | secondes de tour d'horizon ajoutées à la fin |
+| `tour` | survol d'ensemble : plusieurs sorties séparées par des virgules |
 | `width`, `height` | 960×540 par défaut |
 | `title` | bandeau affiché en bas |
 | `out` | chemin du fichier produit |
+
+Avec `tour`, la caméra ne suit plus une trace mais une **ligne de vol** passant par
+les points hauts des sorties demandées, du sud au nord, à 2 300 m au-dessus du relief.
+Les traces sont toutes dessinées sur la carte, le bandeau nomme celle qu'on aborde, et
+le HUD disparaît — il n'a pas de sens quand on survole quatre sorties d'un coup. Les
+angles de la ligne de vol sont arrondis (Chaikin), sans quoi l'avion pivoterait sur
+place entre deux massifs.
+
+```sh
+node scripts/render-flyover.mjs --tour=le-colombier,mont-trelod,le-chatelard,mont-veyrier \
+  --seconds=30 --fps=20 --out=videos/bauges-annecy.mp4
+```
 
 Compter une cinquantaine de minutes pour 300 images : le rendu tourne en OpenGL
 logiciel sur le runner, et chaque image attend que les tuiles soient arrivées.
